@@ -1,0 +1,56 @@
+[
+    {
+        "name": "Wheat Seeds",
+        "level": 1,
+        "buy_price": 5,
+        "sell_price": 3
+    },
+    {
+        "name": "Corn Seeds",
+        "level": 1,
+        "buy_price": 10,
+        "sell_price": 7
+    },
+    {
+        "name": "Carrot Seeds",
+        "level": 2,
+        "buy_price": 15,
+        "sell_price": 10
+    },
+    {
+        "name": "Pumpkin Seeds",
+        "level": 2,
+        "buy_price": 25,
+        "sell_price": 18
+    },
+    {
+        "name": "Strawberry Seeds",
+        "level": 3,
+        "buy_price": 35,
+        "sell_price": 28
+    },
+    {
+        "name": "Blueberry Seeds",
+        "level": 4,
+        "buy_price": 50,
+        "sell_price": 40
+    },
+    {
+        "name": "Coffee Beans",
+        "level": 5,
+        "buy_price": 100,
+        "sell_price": 80
+    },
+    {
+        "name": "Tomato Seeds",
+        "level": 3,
+        "buy_price": 45,
+        "sell_price": 38
+    },
+    {
+        "name": "Potato Seeds",
+        "level": 2,
+        "buy_price": 30,
+        "sell_price": 22
+    }
+]

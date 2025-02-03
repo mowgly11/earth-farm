@@ -1,0 +1,38 @@
+[
+    {
+        "name": "Chicken",
+        "level": 1,
+        "buy_price": 50,
+        "sell_price": 30
+    },
+    {
+        "name": "Cow",
+        "level": 1,
+        "buy_price": 150,
+        "sell_price": 100
+    },
+    {
+        "name": "Sheep",
+        "level": 3,
+        "buy_price": 200,
+        "sell_price": 140
+    },
+    {
+        "name": "Goat",
+        "level": 4,
+        "buy_price": 300,
+        "sell_price": 220
+    },
+    {
+        "name": "Bee Colony",
+        "level": 5,
+        "buy_price": 600,
+        "sell_price": 500
+    },
+    {
+        "name": "Duck",
+        "level": 3,
+        "buy_price": 250,
+        "sell_price": 200
+    }
+]

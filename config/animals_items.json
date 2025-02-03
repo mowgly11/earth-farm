@@ -1,0 +1,38 @@
+[
+    {
+        "name": "Eggs",
+        "from": "Chicken",
+        "level": 1,
+        "sell_price": 15
+    },
+    {
+        "name": "Milk",
+        "from": "Cow",
+        "level": 1,
+        "sell_price": 50
+    },
+    {
+        "name": "Wool",
+        "from": "Sheep",
+        "level": 3,
+        "sell_price": 70
+    },
+    {
+        "name": "Cheese",
+        "from": "Goat",
+        "level": 4,
+        "sell_price": 90
+    },
+    {
+        "name": "Honey",
+        "from": "Bee Colony",
+        "level": 5,
+        "sell_price": 130
+    },
+    {
+        "name": "Feathers",
+        "from": "Duck",
+        "level": 3,
+        "sell_price": 45
+    }
+]
