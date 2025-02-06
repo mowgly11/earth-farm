@@ -1,0 +1,219 @@
+{
+    "market": {
+        "seeds": [
+            {
+                "name": "Wheat Seeds",
+                "level": 1,
+                "buy_price": 5,
+                "sell_price": 3,
+                "harvest_value": 10
+            },
+            {
+                "name": "Corn Seeds",
+                "level": 1,
+                "buy_price": 10,
+                "sell_price": 7,
+                "harvest_value": 18
+            },
+            {
+                "name": "Carrot Seeds",
+                "level": 2,
+                "buy_price": 15,
+                "sell_price": 10,
+                "harvest_value": 25
+            },
+            {
+                "name": "Pumpkin Seeds",
+                "level": 2,
+                "buy_price": 25,
+                "sell_price": 18,
+                "harvest_value": 40
+            },
+            {
+                "name": "Strawberry Seeds",
+                "level": 3,
+                "buy_price": 35,
+                "sell_price": 28,
+                "harvest_value": 55
+            },
+            {
+                "name": "Blueberry Seeds",
+                "level": 4,
+                "buy_price": 50,
+                "sell_price": 40,
+                "harvest_value": 80
+            },
+            {
+                "name": "Coffee Beans",
+                "level": 5,
+                "buy_price": 100,
+                "sell_price": 80,
+                "harvest_value": 150
+            },
+            {
+                "name": "Tomato Seeds",
+                "level": 3,
+                "buy_price": 45,
+                "sell_price": 38,
+                "harvest_value": 70
+            },
+            {
+                "name": "Potato Seeds",
+                "level": 2,
+                "buy_price": 30,
+                "sell_price": 22,
+                "harvest_value": 50
+            }
+        ],
+        "crops": [
+            {
+                "name": "Wheat",
+                "level": 1,
+                "sell_price": 10
+            },
+            {
+                "name": "Corn",
+                "level": 1,
+                "sell_price": 18
+            },
+            {
+                "name": "Carrot",
+                "level": 2,
+                "sell_price": 25
+            },
+            {
+                "name": "Pumpkin",
+                "level": 2,
+                "sell_price": 40
+            },
+            {
+                "name": "Strawberry",
+                "level": 3,
+                "sell_price": 55
+            },
+            {
+                "name": "Blueberry",
+                "level": 4,
+                "sell_price": 80
+            },
+            {
+                "name": "Coffee Beans",
+                "level": 5,
+                "sell_price": 150
+            },
+            {
+                "name": "Tomato",
+                "level": 3,
+                "sell_price": 70
+            },
+            {
+                "name": "Potato",
+                "level": 2,
+                "sell_price": 50
+            }
+        ],
+        "animals": [
+            {
+                "name": "Chicken",
+                "level": 1,
+                "buy_price": 50,
+                "sell_price": 30
+            },
+            {
+                "name": "Cow",
+                "level": 1,
+                "buy_price": 150,
+                "sell_price": 100
+            },
+            {
+                "name": "Sheep",
+                "level": 3,
+                "buy_price": 200,
+                "sell_price": 140
+            },
+            {
+                "name": "Goat",
+                "level": 4,
+                "buy_price": 300,
+                "sell_price": 220
+            },
+            {
+                "name": "Pig",
+                "level": 6,
+                "buy_price": 500,
+                "sell_price": 400
+            },
+            {
+                "name": "Bee Colony",
+                "level": 5,
+                "buy_price": 600,
+                "sell_price": 500
+            },
+            {
+                "name": "Duck",
+                "level": 3,
+                "buy_price": 250,
+                "sell_price": 200
+            }
+        ],
+        "animal_products": [
+            {
+                "name": "Eggs",
+                "level": 1,
+                "sell_price": 15
+            },
+            {
+                "name": "Milk",
+                "level": 1,
+                "sell_price": 50
+            },
+            {
+                "name": "Wool",
+                "level": 3,
+                "sell_price": 70
+            },
+            {
+                "name": "Cheese",
+                "level": 4,
+                "sell_price": 90
+            },
+            {
+                "name": "Truffles",
+                "level": 6,
+                "sell_price": 150
+            },
+            {
+                "name": "Honey",
+                "level": 5,
+                "sell_price": 130
+            },
+            {
+                "name": "Feathers",
+                "level": 3,
+                "sell_price": 45
+            }
+        ],
+        "upgrades": [
+            {
+                "name": "Greenhouse",
+                "level": 5,
+                "buy_price": 5000
+            },
+            {
+                "name": "Fertilizer",
+                "level": 8,
+                "buy_price": 18000
+            },
+            {
+                "name": "Tractor",
+                "level": 7,
+                "buy_price": 5000
+            },
+            {
+                "name": "Sprinkler System",
+                "level": 6,
+                "buy_price": 3000
+            }
+        ]
+    }
+}

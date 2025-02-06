@@ -3,36 +3,42 @@
         "name": "Chicken",
         "level": 1,
         "buy_price": 50,
-        "sell_price": 30
+        "sell_price": 30,
+        "ready_time": 180000
     },
     {
         "name": "Cow",
         "level": 1,
         "buy_price": 150,
-        "sell_price": 100
+        "sell_price": 100,
+        "ready_time": 300000
     },
     {
         "name": "Sheep",
         "level": 3,
         "buy_price": 200,
-        "sell_price": 140
+        "sell_price": 140,
+        "ready_time": 420000
     },
     {
         "name": "Goat",
         "level": 4,
         "buy_price": 300,
-        "sell_price": 220
+        "sell_price": 220,
+        "ready_time": 480000
     },
     {
         "name": "Bee Colony",
         "level": 5,
         "buy_price": 600,
-        "sell_price": 500
+        "sell_price": 500,
+        "ready_time": 600000
     },
     {
         "name": "Duck",
         "level": 3,
         "buy_price": 250,
-        "sell_price": 200
+        "sell_price": 200,
+        "ready_time": 240000
     }
 ]

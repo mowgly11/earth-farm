@@ -1,0 +1,62 @@
+[
+    {
+        "level": 1,
+        "crop_slots": 4,
+        "animal_slots": 2,
+        "price": 0
+    },
+    {
+        "level": 2,
+        "crop_slots": 6,
+        "animal_slots": 3,
+        "price": 500
+    },
+    {
+        "level": 3,
+        "crop_slots": 9,
+        "animal_slots": 3,
+        "price": 1200
+    },
+    {
+        "level": 4,
+        "crop_slots": 12,
+        "animal_slots": 5,
+        "price": 2500
+    },
+    {
+        "level": 5,
+        "crop_slots": 16,
+        "animal_slots": 5,
+        "price": 5000
+    },
+    {
+        "level": 6,
+        "crop_slots": 16,
+        "animal_slots": 8,
+        "price": 7500
+    },
+    {
+        "level": 7,
+        "crop_slots": 20,
+        "animal_slots": 8,
+        "price": 12000
+    },
+    {
+        "level": 8,
+        "crop_slots": 25,
+        "animal_slots": 8,
+        "price": 18000
+    },
+    {
+        "level": 9,
+        "crop_slots": 25,
+        "animal_slots": 8,
+        "price": 25000
+    },
+    {
+        "level": 10,
+        "crop_slots": 30,
+        "animal_slots": 10,
+        "price": 35000
+    }
+]
