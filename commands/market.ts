@@ -1,19 +1,16 @@
 import { CommandInteraction, SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, ComponentType, MessageFlags } from "discord.js";
-import seeds from "../config/items/seeds.json";
-import animals from "../config/items/animals.json";
+import marketItems from "../config/items/market_items.json";
 import upgrades from "../config/upgrades/farms.json";
 
-let seedsData = stringifyData(seeds);
-let upgradesData = stringifyData(upgrades);
-let animalsData = stringifyData(animals);
+let seedsData = stringifyMarketData(marketItems, "seeds");
+let animalsData = stringifyMarketData(marketItems, "animals");
+let upgradesData = stringifyMarketData(upgrades);
 
 export const data = new SlashCommandBuilder()
     .setName("market")
     .setDescription("shows the current market items");
 
 export async function execute(interaction: CommandInteraction) {
-    const userId = interaction.user.id;
-
     const marketLandingPage = new EmbedBuilder()
         .setTitle("The Market")
         .setColor("Yellow")
@@ -80,23 +77,23 @@ export async function execute(interaction: CommandInteraction) {
     collector?.on("collect", async data => {
         await data.deferUpdate();
 
-        row.components.forEach(component => component.setStyle(ButtonStyle.Primary));
+        row.components.forEach(component => component.setStyle(ButtonStyle.Primary).setDisabled(false));
 
         switch (data.customId) {
             case "mainmenu":
-                row.components[0].setStyle(ButtonStyle.Success);
+                row.components[0].setStyle(ButtonStyle.Success).setDisabled(true);
                 await interaction.editReply({ embeds: [marketLandingPage], components: [row] });
                 break;
             case "animals":
-                row.components[1].setStyle(ButtonStyle.Success);
+                row.components[1].setStyle(ButtonStyle.Success).setDisabled(true);
                 await interaction.editReply({ embeds: [marketAnimalsPage], components: [row] });
                 break;
             case "seeds":
-                row.components[2].setStyle(ButtonStyle.Success);
+                row.components[2].setStyle(ButtonStyle.Success).setDisabled(true);
                 await interaction.editReply({ embeds: [marketSeedsPage], components: [row] });
                 break;
             case "upgrades":
-                row.components[3].setStyle(ButtonStyle.Success);
+                row.components[3].setStyle(ButtonStyle.Success).setDisabled(true);
                 await interaction.editReply({ embeds: [marketUpgradesPage], components: [row] });
                 break;
         }
@@ -108,15 +105,20 @@ export async function execute(interaction: CommandInteraction) {
     })
 }
 
-function stringifyData(data: Array<Record<string, string | number>>): string {
+function stringifyMarketData(data: Array<Record<string, string | number>>, type: "seeds" | "animals" | null = null): string {
     let finalString: string = "";
     data.map(record => {
         const keys = Object.keys(record);
+
+        if (record['type'] && record['type'] !== type) return;
+
         keys.map(key => {
+            let newReadyTime: string = "";
             let cleanKey = key.replace("_", " ");
-            if (key === "ready_time") record[key] = `${Number(record[key]) / 1000 / 60}mins`;
-            finalString += `**${cleanKey}:** ${record[key]}\n`;
+            if (key === "ready_time") newReadyTime = `${Number(record[key]) / 1000 / 60}mins`;
+            finalString += `**${cleanKey}:** ${key==="ready_time" ? newReadyTime : record[key]}\n`;
         });
+        
         finalString += "\n\n";
     })
     return finalString;
