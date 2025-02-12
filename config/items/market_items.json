@@ -1,0 +1,122 @@
+[
+    {
+        "name": "Chicken",
+        "level": 1,
+        "buy_price": 50,
+        "sell_price": 30,
+        "ready_time": 180000,
+        "type": "animals"
+    },
+    {
+        "name": "Cow",
+        "level": 1,
+        "buy_price": 150,
+        "sell_price": 100,
+        "ready_time": 300000,
+        "type": "animals"
+    },
+    {
+        "name": "Sheep",
+        "level": 3,
+        "buy_price": 200,
+        "sell_price": 140,
+        "ready_time": 420000,
+        "type": "animals"
+    },
+    {
+        "name": "Goat",
+        "level": 4,
+        "buy_price": 300,
+        "sell_price": 220,
+        "ready_time": 480000,
+        "type": "animals"
+    },
+    {
+        "name": "Bee Colony",
+        "level": 5,
+        "buy_price": 600,
+        "sell_price": 500,
+        "ready_time": 600000,
+        "type": "animals"
+    },
+    {
+        "name": "Duck",
+        "level": 3,
+        "buy_price": 250,
+        "sell_price": 200,
+        "ready_time": 240000,
+        "type": "animals"
+    },
+    {
+        "name": "Wheat Seeds",
+        "level": 1,
+        "buy_price": 5,
+        "sell_price": 3,
+        "ready_time": 120000,
+        "type": "seeds"
+    },
+    {
+        "name": "Corn Seeds",
+        "level": 1,
+        "buy_price": 10,
+        "sell_price": 7,
+        "ready_time": 240000,
+        "type": "seeds"
+    },
+    {
+        "name": "Carrot Seeds",
+        "level": 2,
+        "buy_price": 15,
+        "sell_price": 10,
+        "ready_time": 360000,
+        "type": "seeds"
+    },
+    {
+        "name": "Pumpkin Seeds",
+        "level": 2,
+        "buy_price": 25,
+        "sell_price": 18,
+        "ready_time": 600000,
+        "type": "seeds"
+    },
+    {
+        "name": "Strawberry Seeds",
+        "level": 3,
+        "buy_price": 35,
+        "sell_price": 28,
+        "ready_time": 900000,
+        "type": "seeds"
+    },
+    {
+        "name": "Blueberry Seeds",
+        "level": 4,
+        "buy_price": 50,
+        "sell_price": 40,
+        "ready_time": 1200000,
+        "type": "seeds"
+    },
+    {
+        "name": "Coffee Seeds",
+        "level": 5,
+        "buy_price": 100,
+        "sell_price": 80,
+        "ready_time": 2400000,
+        "type": "seeds"
+    },
+    {
+        "name": "Tomato Seeds",
+        "level": 3,
+        "buy_price": 45,
+        "sell_price": 38,
+        "ready_time": 1500000,
+        "type": "seeds"
+    },
+    {
+        "name": "Potato Seeds",
+        "level": 2,
+        "buy_price": 30,
+        "sell_price": 22,
+        "ready_time": 1800000,
+        "type": "seeds"
+    }
+]
