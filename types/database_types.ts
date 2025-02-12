@@ -1,21 +1,22 @@
-export type Seed = {
+export type InventoryItem = {
     name: string;
-    level: number;
-    buy_price: number;
-    sell_price: number;
     amount: number;
-};
+    type: string;
+}
 
-export type Crop = {
-    name: string;
-    level: number;
-    sell_price: number;
-    amount: number;
-};
+export type OccupiedCropSlot = {
+    seed: string,
+    started: boolean,
+    ready_in: number,
+    product: string
+}
 
-export type Animal = Seed;
-
-export type AnimalProduct = Crop & { from: string; };
+export type OccupiedAnimalSlot = {
+    animal: string,
+    started: boolean,
+    ready_in: number,
+    product: string
+}
 
 export type Farm = {
     level: number;
@@ -24,11 +25,10 @@ export type Farm = {
 };
 
 export type Inventory = {
-    seeds: Array<Seed>,
-    crops: Array<Crop>,
-    animals: Array<Animal>,
-    animal_products: Array<AnimalProduct>,
-    upgrades: Array<Upgrades>
+    seeds: Array<InventoryItem>,
+    crops: Array<InventoryItem>,
+    animals: Array<InventoryItem>,
+    animal_products: Array<InventoryItem>,
 };
 
 export type User = {
