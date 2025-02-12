@@ -6,6 +6,8 @@ import { join } from "path";
 
 let baseImage: any;
 let bar: any;
+
+//load the images on the program start so it doesn't get loaded everytime the command is executed
 (async() => {
     baseImage = await Canvas.loadImage(join(__dirname, "../assets", "barholder.png"));
     bar = await Canvas.loadImage(join(__dirname, "../assets", "bar.png"));
@@ -21,13 +23,13 @@ export const data = new SlashCommandBuilder()
     )
 
 export async function execute(interaction: CommandInteraction) {
-    let userId = interaction.options.get("farmer")?.user?.id;
-    if (!userId) userId = interaction.user.id;
-
-    let userData: any = await database.findUser(userId);
-    if(!userData) return interaction.reply({ content: "user's xp wasn't found.", flags: MessageFlags.Ephemeral });
-
     await interaction.deferReply();
+
+    let user = interaction.options.get("farmer")?.user;
+    if (!user) user = interaction.user;
+
+    let userData: any = await database.findUser(user.id);
+    if(!userData) return interaction.editReply({ content: `${user.username}'s xp wasn't found.` });
 
     const xp = userData?.xp;
     const currentLevel = userData?.level;
@@ -38,12 +40,12 @@ export async function execute(interaction: CommandInteraction) {
     const canvas = Canvas.createCanvas(400, 100);
     const ctx = canvas.getContext('2d');
 
-    ctx.font = "Sans Not-Rotated 14px";
+    ctx.font = "14px sans-serif";
     ctx.fillStyle = "white";
 
     ctx.drawImage(baseImage, 0, 0, canvas.width, canvas.height);
     
-    ctx.fillText(`Level: ${currentLevel} - XP: ${xp}/${requiredXp}`, 20, 30);
+    ctx.fillText(`Level: ${currentLevel} - XP: ${xp}/${requiredXp}`, 20, 25);
 
     let barWidth = 27;
     let barHeight = 41;
@@ -52,7 +54,6 @@ export async function execute(interaction: CommandInteraction) {
         ctx.drawImage(bar, barWidth, barHeight, 20, 30);
         barWidth += 25;
     }
-
 
     const finalAttachment = new AttachmentBuilder(canvas.toBuffer(), { name: "level.png" });
 
