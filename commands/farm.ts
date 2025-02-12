@@ -1,66 +1,62 @@
-import { CommandInteraction, SlashCommandBuilder, EmbedBuilder, MessageFlags } from "discord.js";
-import database from '../database/methods.ts';
+import { CommandInteraction, SlashCommandBuilder, EmbedBuilder } from "discord.js";
+import database from "../database/methods.ts";
 
 export const data = new SlashCommandBuilder()
-  .setName("farm")
-  .setDescription("shows your farm stats.")
-  .addUserOption(option =>
-    option
-      .setName("farmer")
-      .setDescription("show's a farmer's farm stats.")
-  )
+    .setName("farm")
+    .setDescription("check your farm stats and occupied crop & animal slots")
+    .addUserOption(option =>
+        option
+            .setName("farmer")
+            .setDescription("check another farmer's farm stats")
+
+    )
 
 export async function execute(interaction: CommandInteraction) {
-  const mentionedUserId = interaction.options.get("farmer")?.user?.id;
-  let user: any;
+    await interaction.deferReply();
+    let user: any = interaction.options.get("farmer")?.user;
+    if (!user) user = interaction.user;
 
-  if (mentionedUserId) {
-    user = await database.findUser(mentionedUserId);
-    if (!user) return interaction.reply({ content: "user's farm wasn't found.", flags: MessageFlags.Ephemeral });
-  } else {
-    const userId = interaction.user?.id;
-    const username = interaction.user?.username;
+    let userProfile: any = await database.findUser(user.id);
+    if (!userProfile) return interaction.editReply({ content: `${user.username}'s farm wasn't found.` });
 
-    if (userId) {
-      user = await database.findUser(userId);
-      if (!user) {
-        const newUser = await database.createUser(userId, username);
-        if (newUser) return interaction.reply({ content: "user doesn't have a profile yet, let me fix that.", flags: MessageFlags.Ephemeral });
-        else return interaction.reply({ content: "an error occurred", flags: MessageFlags.Ephemeral });
-      }
-    }
-  }
+    let userInfoFields: Array<UserInfoFields> = [...stringifySlots(userProfile.farm)];
 
-  await interaction.deferReply();
+    const farmerEmbed = new EmbedBuilder()
+        .setTitle(`${user.username}'s Farm stats`)
+        .setColor("Yellow")
+        .addFields(...userInfoFields)
 
-  let userInfoFields: Array<UserInfoField> = [
-    {
-      name: "Farm Level",
-      value: String(user?.farm?.level),
-      inline: true,
-    },
-    {
-      name: "Crop Slots",
-      value: String(user?.farm?.crop_slots),
-      inline: true,
-    },
-    {
-      name: "Animal Slots",
-      value: String(user?.farm?.animal_slots),
-      inline: true,
-    }
-  ];
-
-  const farmEmbed = new EmbedBuilder()
-    .setAuthor({ name: `${user.username}'s Farm` })
-    .setColor("Yellow")
-    .addFields(...userInfoFields)
-
-  await interaction.followUp({ embeds: [farmEmbed] });
+    await interaction.editReply({ embeds: [farmerEmbed] });
 }
 
-type UserInfoField = {
-  name: string;
-  value: string,
-  inline: boolean;
+function stringifySlots(farmDetails: any): Array<UserInfoFields> {
+    let arrOfUserData: Array<UserInfoFields> = [];
+    const keys = Object.keys(farmDetails);
+    for (let i = 0; i < keys.length; i++) {
+        const val = farmDetails[keys[i]];
+        if (typeof val !== "object") arrOfUserData.push({
+            name: keys[i].replace(/_/g, " "),
+            value: String(val),
+            inline: true
+        });
+        else {
+            for (let j = 0; j < val.length; j++) {
+                let objKeys = Object.keys(val[j]);
+                for (let k = 0; k < objKeys.length; k++) {
+                    arrOfUserData.push({
+                        name: `Slot ${j+1} plant ` + objKeys[k].replace(/_/g, " ") + ":",
+                        value: objKeys[k] === "ready_at" ? String(((val[j][objKeys[k]] - Date.now()) / 1000) < 0 ? "Ready!" : ((val[j][objKeys[k]] - Date.now()) / 1000).toFixed(0) + 's') : val[j][objKeys[k]],
+                    });
+                }
+            }
+        }
+    }
+
+    return arrOfUserData;
+}
+
+type UserInfoFields = {
+    name: string;
+    value: string;
+    inline?: boolean;
 }
