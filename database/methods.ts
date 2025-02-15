@@ -29,52 +29,57 @@ class DatabaseMethods {
         }
     }
 
-    async addItemToInventory(userProfile: any, item: string, quantity: number, type: string) {
-        let inventoryList = userProfile.inventory.market_items;
-        let itemIndex = inventoryList.findIndex((v: any) => v?.name === item);
+    async addItemTostorage(userProfile: any, item: string, quantity: number, type: string) {
+        let storageList = userProfile.storage.market_items;
+        let itemIndex = storageList.findIndex((v: any) => v?.name === item);
 
-        if (itemIndex !== -1) inventoryList[itemIndex].amount += quantity;
+        if (itemIndex !== -1) storageList[itemIndex].amount += quantity;
 
-        else inventoryList.push({ name: item, amount: quantity, type });
+        else storageList.push({ name: item, amount: quantity, type });
 
-        if (typeof userProfile.markModified === "function") userProfile.markModified("inventory");
+        if (typeof userProfile.markModified === "function") userProfile.markModified("storage");
 
         await userProfile.save();
     }
 
-    async removeItemFromInventory(userProfile: any, item: string, quantity: number) {
-        let inventoryList = userProfile.inventory.market_items;
-        let itemIndex = inventoryList.findIndex((v: any) => v?.name === item);
+    async removeItemFromstorage(userProfile: any, item: string, quantity: number, type: "products" | "market_items") {
+        let storageList = userProfile.storage[type];
+        let itemIndex = storageList.findIndex((v: any) => v?.name === item);
 
-        inventoryList[itemIndex].amount -= quantity;
+        storageList[itemIndex].amount -= quantity;
 
-        if (inventoryList[itemIndex].amount === 0) inventoryList.splice(itemIndex, 1);
+        if (storageList[itemIndex].amount === 0) storageList.splice(itemIndex, 1);
 
-        if (typeof userProfile.markModified === "function") userProfile.markModified("inventory");
+        if (typeof userProfile.markModified === "function") userProfile.markModified("storage");
 
         await userProfile.save();
     }
 
     async makePayment(userProfile: any, price: number) {
         userProfile.gold += price;
-
         await userProfile.save();
     }
 
-    async plantSeed(userProfile: any, seed: string, ready_at: number) {
+    async plantSeed(userProfile: any, seed: string, ready_at: number, prod: string) {
         userProfile.farm.occupied_crop_slots.push({
             name: seed,
+            gives: prod,
             ready_at: Date.now() + ready_at
         });
     }
 
-    async harvestReadyPlants(userProfile: any) {
+    async harvestReadyPlants(userProfile: any, storageLeft:number) {
         const harvestPlantsLength = userProfile.farm.occupied_crop_slots.length;
+        let harvestLoopLength = 0;
+
+        if(harvestPlantsLength > storageLeft) harvestLoopLength = storageLeft;
+        else harvestLoopLength = harvestPlantsLength;
+
         let ready = [];
-        for (let i = harvestPlantsLength - 1; i >= 0; i--) {
+        for (let i = harvestLoopLength - 1; i >= 0; i--) {
             if (userProfile.farm.occupied_crop_slots[i].ready_at - Date.now() > 0) continue; // meaning its not ready to harvest
 
-            const foundPlantInInventoryIndex = userProfile.inventory.products.findIndex((v: any) => v?.from === userProfile.farm.occupied_crop_slots[i].name);
+            const foundPlantInstorageIndex = userProfile.storage.products.findIndex((v: any) => v?.name === userProfile.farm.occupied_crop_slots[i].gives);
             let findItemInDatabase = products.find(v => v?.from === userProfile.farm.occupied_crop_slots[i].name);
 
             ready.push({
@@ -83,13 +88,13 @@ class DatabaseMethods {
                 type: "product"
             });
 
-            if (foundPlantInInventoryIndex === -1) userProfile.inventory.products.push({
-                name: findItemInDatabase?.name,
-                amount: 1,
-                type: "product"
-            });
-
-            else userProfile.inventory.products[foundPlantInInventoryIndex].amount += 1;
+            if (foundPlantInstorageIndex === -1) {
+                userProfile.storage.products.push({
+                    name: findItemInDatabase?.name,
+                    amount: 1,
+                    type: "product"
+                });
+            } else userProfile.storage.products[foundPlantInstorageIndex].amount += 1;
 
             userProfile.farm.occupied_crop_slots.splice(i, 1);
             userProfile.xp += findItemInDatabase?.xp_gain;
@@ -97,7 +102,7 @@ class DatabaseMethods {
 
         if (typeof userProfile.markModified === "function") {
             userProfile.markModified("farm");
-            userProfile.markModified("inventory");
+            userProfile.markModified("storage");
         }
 
         await userProfile.save();
@@ -115,6 +120,16 @@ class DatabaseMethods {
         }
 
         return false;
+    }
+
+    async upgradeFarm(userProfile: any, toLevelData: Record<string, string | number>): Promise<void> {
+        const keys = Object.keys(userProfile.farm);
+        
+        keys.forEach((key:string) => {
+            userProfile.farm[key] = toLevelData[key];
+        });
+
+        await userProfile.save();
     }
 }
 
