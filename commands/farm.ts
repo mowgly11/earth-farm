@@ -1,4 +1,4 @@
-import { CommandInteraction, SlashCommandBuilder, EmbedBuilder } from "discord.js";
+import { CommandInteraction, SlashCommandBuilder, EmbedBuilder, MessageFlags } from "discord.js";
 import database from "../database/methods.ts";
 
 export const data = new SlashCommandBuilder()
@@ -8,55 +8,45 @@ export const data = new SlashCommandBuilder()
         option
             .setName("farmer")
             .setDescription("check another farmer's farm stats")
-
     )
 
 export async function execute(interaction: CommandInteraction) {
-    await interaction.deferReply();
     let user: any = interaction.options.get("farmer")?.user;
     if (!user) user = interaction.user;
+    
+    if(user.bot) return interaction.reply({ content: "you can't interact with bots!", flags: MessageFlags.Ephemeral});
+    await interaction.deferReply();
 
     let userProfile: any = await database.findUser(user.id);
     if (!userProfile) return interaction.editReply({ content: `${user.username}'s farm wasn't found.` });
 
-    let userInfoFields: Array<UserInfoFields> = [...stringifySlots(userProfile.farm)];
-
     const farmerEmbed = new EmbedBuilder()
         .setTitle(`${user.username}'s Farm stats`)
         .setColor("Yellow")
-        .addFields(...userInfoFields)
+        .setDescription(stringifySlots(userProfile.farm))
+        .setImage("https://i.imgur.com/NiXXCZf.png")
 
     await interaction.editReply({ embeds: [farmerEmbed] });
 }
 
-function stringifySlots(farmDetails: any): Array<UserInfoFields> {
-    let arrOfUserData: Array<UserInfoFields> = [];
+function stringifySlots(farmDetails: any) {
+    let strOfUserData: string = "";
     const keys = Object.keys(farmDetails);
     for (let i = 0; i < keys.length; i++) {
         const val = farmDetails[keys[i]];
-        if (typeof val !== "object") arrOfUserData.push({
-            name: keys[i].replace(/_/g, " "),
-            value: String(val),
-            inline: true
-        });
+        if (typeof val !== "object") strOfUserData += `**${keys[i].replace(/_/g, " ")}:** ${String(val)}\n`;
+        
         else {
             for (let j = 0; j < val.length; j++) {
                 let objKeys = Object.keys(val[j]);
                 for (let k = 0; k < objKeys.length; k++) {
-                    arrOfUserData.push({
-                        name: `Slot ${j+1} plant ` + objKeys[k].replace(/_/g, " ") + ":",
-                        value: objKeys[k] === "ready_at" ? String(((val[j][objKeys[k]] - Date.now()) / 1000) < 0 ? "Ready!" : ((val[j][objKeys[k]] - Date.now()) / 1000).toFixed(0) + 's') : val[j][objKeys[k]],
-                    });
+                    if (objKeys[k] === "gives") continue;
+                    strOfUserData += `**Slot ${j + 1} plant ${objKeys[k].replace(/_/g, " ")}:** ${objKeys[k] === "ready_at" ? String(((val[j][objKeys[k]] - Date.now()) / 1000) < 0 ? "Ready!" : ((val[j][objKeys[k]] - Date.now()) / 1000).toFixed(0) + 's') : val[j][objKeys[k]]}\n`;
                 }
+                strOfUserData+="\n";
             }
         }
     }
-
-    return arrOfUserData;
-}
-
-type UserInfoFields = {
-    name: string;
-    value: string;
-    inline?: boolean;
+    
+    return strOfUserData;
 }

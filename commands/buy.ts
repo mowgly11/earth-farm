@@ -39,18 +39,26 @@ export async function execute(interaction: CommandInteraction) {
     const userId = interaction.user.id;
 
     const userProfile: any = await database.findUser(userId);
-    if (!userProfile) return interaction.editReply({ content: "Please make a profile using `/farmer` before trying to buy anything from the market." })
+    if (!userProfile) return interaction.editReply({ content: "Please make a profile using `/farmer` before trying to buy anything from the market." });
 
+    
     const findItemInDatabase = marketItems.find(v => v.name === item)!;
-
+    
     const itemPrice: any = findItemInDatabase?.buy_price!;
     const itemLevel = findItemInDatabase?.level!;
-
+    
     const buyingPrice = itemPrice * quantity;
     if (userProfile?.level < itemLevel) return interaction.editReply({ content: `you need to be at level ${itemLevel} to be able to buy this item.` });
     if (buyingPrice > userProfile?.gold) return interaction.editReply({ content: "you don't have enough gold to buy this item" });
+    
+    let storageCount = 0;
+    
+    userProfile.storage.market_items.forEach((v:any) => storageCount += v?.amount ?? 0);
+    userProfile.storage.products.forEach((v:any) => storageCount += v?.amount ?? 0);
 
-    await database.addItemToInventory(userProfile, String(findItemInDatabase?.name), quantity, findItemInDatabase?.type);
+    if (userProfile.farm.storage_limit - storageCount <= 0 || quantity > userProfile.farm.storage_limit - storageCount) return interaction.editReply({ content: "storage limit exceeded." });
+    
+    await database.addItemTostorage(userProfile, String(findItemInDatabase?.name), quantity, findItemInDatabase?.type);
     await database.makePayment(userProfile, -buyingPrice);
 
     return interaction.editReply({ content: `Successfully bought ${quantity} of ${item} for a total price of ${buyingPrice}.` });

@@ -11,14 +11,17 @@ export const data = new SlashCommandBuilder()
   )
 
 export async function execute(interaction: CommandInteraction) {
-  await interaction.deferReply();
 
-  const mentionedUserId = interaction.options.get("target")?.user?.id;
+  const mentionedUserId = interaction.options.get("target")?.user;
   let user: any;
 
+  if (mentionedUserId?.bot) return interaction.reply({ content: "you can't interact with bots!", flags: MessageFlags.Ephemeral });
+
+  await interaction.deferReply();
+
   if (mentionedUserId) {
-    user = await database.findUser(mentionedUserId);
-    if (!user) return interaction.editReply({ content: `${interaction.user.username}'s farm wasn't found.` });
+    user = await database.findUser(mentionedUserId.id);
+    if (!user) return interaction.editReply({ content: `${mentionedUserId.username}'s farm wasn't found.` });
   } else {
     const userId = interaction.user?.id;
     const username = interaction.user?.username;
@@ -63,7 +66,12 @@ export async function execute(interaction: CommandInteraction) {
     name: "Animals Slots",
     value: String(user?.farm?.available_animal_slots),
     inline: true,
-  },];
+  },
+  {
+    name: "Storage Limit",
+    value: String(user?.farm?.storage_limit),
+    inline: true,
+  }];
 
   const farmerEmbed = new EmbedBuilder()
     .setTitle(`${user.username}'s Stats`)

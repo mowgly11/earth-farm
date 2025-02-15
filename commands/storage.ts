@@ -2,34 +2,39 @@ import { CommandInteraction, SlashCommandBuilder, MessageFlags, EmbedBuilder } f
 import database from "../database/methods.ts";
 
 export const data = new SlashCommandBuilder()
-    .setName("inventory")
-    .setDescription("show's your/others inventory")
+    .setName("storage")
+    .setDescription("show's your/others storage")
     .addUserOption(option =>
         option
             .setName("farmer")
-            .setDescription("the farmer you want to view their inventory")
+            .setDescription("the farmer you want to view their storage")
     )
 
 export async function execute(interaction: CommandInteraction) {
-    await interaction.deferReply();
     let user = interaction.options.get("farmer")?.user;
+    if(user?.bot) return interaction.reply({ content: "you can't interact with bots!", flags: MessageFlags.Ephemeral});
     if (!user) user = interaction.user;
-
+    
+    await interaction.deferReply();
+    
     let userProfile: any = await database.findUser(user.id);
-    if (!userProfile) return interaction.editReply({ content: "user's inventory wasn't found." });
+    if (!userProfile) return interaction.editReply({ content: "user's storage wasn't found." });
 
+    let storageCount = 0;
+    userProfile.storage.market_items.forEach((v:any) => storageCount += v.amount);
+    userProfile.storage.products.forEach((v:any) => storageCount += v.amount);
 
-    const inventoryEmbed = new EmbedBuilder()
+    const storageEmbed = new EmbedBuilder()
         .setAuthor({ name: user.username })
-        .setTitle(`${user.username}'s Inventory`)
+        .setTitle(`${user.username}'s storage - ${storageCount}/${userProfile.farm.storage_limit}`)
         .setColor("Yellow")
-        .addFields(...formatInventory(userProfile.inventory))
+        .addFields(...formatstorage(userProfile.storage))
         .setImage("https://i.imgur.com/JhrMFfI.png")
 
-    return interaction.editReply({ embeds: [inventoryEmbed] });
+    return interaction.editReply({ embeds: [storageEmbed] });
 }
 
-function formatInventory(fields: Record<string, Array<Record<string, string | number>>>): Array<UserInfoFields> {
+function formatstorage(fields: Record<string, Array<Record<string, string | number>>>): Array<UserInfoFields> {
     let finalArray: Array<UserInfoFields> = [];
 
     const keys = Object.keys(fields);

@@ -40,14 +40,14 @@ export async function execute(interaction: CommandInteraction) {
     const userProfile: any = await database.findUser(userId);
     if (!userProfile) return interaction.editReply({ content: "Please make a profile using `/farmer` before trying to sell anything from the market." })
 
-    if (!userProfile.inventory.market_items.find((v: Record<string, string | number>) => v?.name === item && v?.amount >= quantity)
+    if (!userProfile.storage.market_items.find((v: Record<string, string | number>) => v?.name === item && v?.amount >= quantity)
     ) return interaction.editReply({ content: `you can't sell ${item}. you either don't own it or don't own ${quantity} of it.` });
 
     const findItemInDatabase = marketItems.find(v => v.name === item)!;
 
     const sellingPrice: number = Number(findItemInDatabase?.sell_price!) * quantity;
 
-    await database.removeItemFromInventory(userProfile, findItemInDatabase?.name, quantity);
+    await database.removeItemFromstorage(userProfile, findItemInDatabase?.name, quantity, "market_items");
 
     await database.makePayment(userProfile, sellingPrice);
 

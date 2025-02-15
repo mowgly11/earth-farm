@@ -40,7 +40,7 @@ export async function execute(interaction: CommandInteraction) {
   const userProfile: any = await database.findUser(userId);
   if (!userProfile) return interaction.editReply({ content: "Please make a profile using `/farmer` before trying to buy anything from the market." });
 
-  if (!userProfile.inventory.market_items.find((v: Record<string, string | number>) => v?.name === item && v?.amount >= quantity)
+  if (!userProfile.storage.market_items.find((v: Record<string, string | number>) => v?.name === item && v?.amount >= quantity)
   ) return interaction.editReply({ content: `you can't plant ${item}.` });
 
   if ((userProfile.farm.available_crop_slots - userProfile.farm.occupied_crop_slots.length) < quantity
@@ -51,15 +51,15 @@ export async function execute(interaction: CommandInteraction) {
 
   const findItemInDatabase = marketItems.find(v => v.name === item)!;
 
-  await database.removeItemFromInventory(userProfile, item, quantity);
+  await database.removeItemFromstorage(userProfile, item, quantity, "market_items");
   for (let i = 0; i < quantity; i++) {
-    await database.plantSeed(userProfile, item, findItemInDatabase?.ready_time);
+    await database.plantSeed(userProfile, item, findItemInDatabase?.ready_time, findItemInDatabase.gives);
   }
   
   if (typeof userProfile.markModified === "function") userProfile.markModified("farm");
   await userProfile.save();
 
-  return interaction.editReply({ content: `Successfully planted ${findItemInDatabase.name}. it will be ready in ${findItemInDatabase.ready_time / 1000}s` });
+  return interaction.editReply({ content: `Successfully planted **${quantity}** of **${findItemInDatabase.name}**. it will be ready in **${findItemInDatabase.ready_time / 1000}s**` });
 }
 
 type ChoicesArray = {

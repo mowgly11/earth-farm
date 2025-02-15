@@ -12,6 +12,7 @@ export const data = new SlashCommandBuilder()
 
 export async function execute(interaction: CommandInteraction) {
   let user = interaction.options.get("farmer")?.user;
+  if(user?.bot) return interaction.reply({ content: "you can't interact with bots!", flags: MessageFlags.Ephemeral});
   await interaction.deferReply();
   if (!user) user = interaction.user;
 

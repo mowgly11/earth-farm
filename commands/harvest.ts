@@ -3,7 +3,7 @@ import database from "../database/methods.ts";
 
 export const data = new SlashCommandBuilder()
   .setName("harvest")
-  .setDescription("harvest a specific plant.")
+  .setDescription("Harvests all matured crops.")
 
 export async function execute(interaction: CommandInteraction) {
   await interaction.deferReply();
@@ -13,13 +13,21 @@ export async function execute(interaction: CommandInteraction) {
   const userProfile: any = await database.findUser(userId);
   if (!userProfile) return interaction.editReply({ content: "Please make a profile using `/farmer` before trying to buy anything from the market." });
 
-  const harvested = await database.harvestReadyPlants(userProfile);
+  let storageCount = 0;
+  userProfile.storage.market_items.forEach((v:any) => storageCount += v.amount);
+  userProfile.storage.products.forEach((v:any) => storageCount += v.amount);
+
+  let storageLeft = userProfile.farm.storage_limit - storageCount;
+
+  if (storageLeft <= 0) return interaction.editReply({ content: "storage limit exceeded." });
+
+  const harvested = await database.harvestReadyPlants(userProfile, storageLeft);
   const harvestedString = stringifyProductsList(harvested);
 
   await interaction.editReply({ content: harvestedString === "" ? "Nothing to harvest." : `Successfully harvested ${harvestedString}` });
 
   const canLevelUp = await database.checkEligibleForlevelUp(userProfile);
-  if(canLevelUp) interaction.followUp({ content: `Congrats! you are now level **${userProfile.level}**` })
+  if(canLevelUp) interaction.followUp({ content: `✨ Congrats! you are now level **${userProfile.level}**` });
 }
 
 function stringifyProductsList(products: any): string {
@@ -27,7 +35,7 @@ function stringifyProductsList(products: any): string {
   let finalString = "\n";
   
   for(let i = 0; i < products.length; i++) {
-    finalString += `**Slot ${i+1}:** ${products[i].amount} ${products[i].name}\n`;
+    finalString += `**Slot ${i+1}:** ${products[i].name}\n`;
   }
 
   return finalString;
