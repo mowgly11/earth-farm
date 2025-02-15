@@ -1,4 +1,4 @@
-export type InventoryItem = {
+export type storageItem = {
     name: string;
     amount: number;
     type: string;
@@ -24,18 +24,18 @@ export type Farm = {
     animal_slots: number;
 };
 
-export type Inventory = {
-    seeds: Array<InventoryItem>,
-    crops: Array<InventoryItem>,
-    animals: Array<InventoryItem>,
-    animal_products: Array<InventoryItem>,
+export type storage = {
+    seeds: Array<storageItem>,
+    crops: Array<storageItem>,
+    animals: Array<storageItem>,
+    animal_products: Array<storageItem>,
 };
 
 export type User = {
     readonly id: string;
     username: string;
     farm: Farm;
-    inventory: Inventory;
+    storage: storage;
 }
 
 export type Upgrades = "Fertilizer" | "Tractor" | "Greenhouse" | "Sprinkler System";
