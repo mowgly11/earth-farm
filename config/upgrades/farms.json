@@ -1,62 +1,72 @@
 [
     {
         "level": 1,
-        "crop_slots": 4,
-        "animal_slots": 2,
+        "available_crop_slots": 4,
+        "available_animal_slots": 2,
+        "storage_limit": 50,
         "price": 0
     },
     {
         "level": 2,
-        "crop_slots": 6,
-        "animal_slots": 3,
-        "price": 500
+        "available_crop_slots": 6,
+        "available_animal_slots": 3,
+        "storage_limit": 100,
+        "price": 750
     },
     {
         "level": 3,
-        "crop_slots": 9,
-        "animal_slots": 3,
-        "price": 1200
+        "available_crop_slots": 9,
+        "available_animal_slots": 3,
+        "storage_limit": 200,
+        "price": 2000
     },
     {
         "level": 4,
-        "crop_slots": 12,
-        "animal_slots": 5,
-        "price": 2500
+        "available_crop_slots": 12,
+        "available_animal_slots": 5,
+        "storage_limit": 300,
+        "price": 4500
     },
     {
         "level": 5,
-        "crop_slots": 16,
-        "animal_slots": 5,
-        "price": 5000
+        "available_crop_slots": 16,
+        "available_animal_slots": 5,
+        "storage_limit": 400,
+        "price": 8000
     },
     {
         "level": 6,
-        "crop_slots": 16,
-        "animal_slots": 8,
-        "price": 7500
-    },
-    {
-        "level": 7,
-        "crop_slots": 20,
-        "animal_slots": 8,
+        "available_crop_slots": 16,
+        "available_animal_slots": 8,
+        "storage_limit": 550,
         "price": 12000
     },
     {
-        "level": 8,
-        "crop_slots": 25,
-        "animal_slots": 8,
+        "level": 7,
+        "available_crop_slots": 20,
+        "available_animal_slots": 8,
+        "storage_limit": 700,
         "price": 18000
     },
     {
-        "level": 9,
-        "crop_slots": 25,
-        "animal_slots": 8,
+        "level": 8,
+        "available_crop_slots": 25,
+        "available_animal_slots": 8,
+        "storage_limit": 900,
         "price": 25000
     },
     {
-        "level": 10,
-        "crop_slots": 30,
-        "animal_slots": 10,
+        "level": 9,
+        "available_crop_slots": 25,
+        "available_animal_slots": 10,
+        "storage_limit": 1200,
         "price": 35000
+    },
+    {
+        "level": 10,
+        "available_crop_slots": 30,
+        "available_animal_slots": 12,
+        "storage_limit": 1500,
+        "price": 50000
     }
 ]

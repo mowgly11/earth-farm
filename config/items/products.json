@@ -4,104 +4,111 @@
         "from": "Chicken",
         "level": 1,
         "xp_gain": 3,
-        "sell_price": 15
+        "sell_price": 20
     },
     {
         "name": "Milk",
         "from": "Cow",
         "level": 1,
         "xp_gain": 6,
-        "sell_price": 50
+        "sell_price": 60
     },
     {
         "name": "Wool",
         "from": "Sheep",
         "level": 3,
         "xp_gain": 8,
-        "sell_price": 70
+        "sell_price": 90
     },
     {
         "name": "Cheese",
         "from": "Goat",
         "level": 4,
         "xp_gain": 10,
-        "sell_price": 90
+        "sell_price": 110
     },
     {
         "name": "Honey",
         "from": "Bee Colony",
         "level": 5,
         "xp_gain": 12,
-        "sell_price": 130
+        "sell_price": 150
     },
     {
         "name": "Feathers",
         "from": "Duck",
         "level": 3,
         "xp_gain": 5,
-        "sell_price": 45
+        "sell_price": 55
+    },
+    {
+        "name": "Test Prod",
+        "from": "Test Seeds",
+        "level": 1,
+        "xp_gain": 5,
+        "sell_price": 120
     },
     {
         "name": "Wheat",
         "from": "Wheat Seeds",
         "level": 1,
         "xp_gain": 2,
-        "sell_price": 10
+        "sell_price": 12
     },
     {
         "name": "Corn",
         "from": "Corn Seeds",
         "level": 1,
         "xp_gain": 4,
-        "sell_price": 18
+        "sell_price": 22
     },
     {
         "name": "Carrot",
         "from": "Carrot Seeds",
         "level": 2,
         "xp_gain": 6,
-        "sell_price": 25
+        "sell_price": 32
     },
     {
         "name": "Pumpkin",
         "from": "Pumpkin Seeds",
         "level": 2,
         "xp_gain": 8,
-        "sell_price": 40
+        "sell_price": 50
     },
     {
         "name": "Strawberry",
         "from": "Strawberry Seeds",
         "level": 3,
         "xp_gain": 10,
-        "sell_price": 55
+        "sell_price": 65
     },
     {
         "name": "Blueberry",
         "from": "Blueberry Seeds",
         "level": 4,
         "xp_gain": 12,
-        "sell_price": 80
+        "sell_price": 90
     },
     {
         "name": "Coffee Beans",
         "from": "Coffee Seeds",
         "level": 5,
         "xp_gain": 20,
-        "sell_price": 150
+        "sell_price": 180
     },
     {
         "name": "Tomato",
         "from": "Tomato Seeds",
         "level": 3,
         "xp_gain": 15,
-        "sell_price": 70
+        "sell_price": 85
     },
     {
         "name": "Potato",
         "from": "Potato Seeds",
         "level": 2,
         "xp_gain": 9,
-        "sell_price": 50
+        "sell_price": 60
     }
 ]

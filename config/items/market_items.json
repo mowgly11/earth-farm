@@ -1,121 +1,145 @@
 [
     {
         "name": "Chicken",
+        "gives": "Eggs",
         "level": 1,
-        "buy_price": 50,
-        "sell_price": 30,
+        "buy_price": 75,
+        "sell_price": 40,
         "ready_time": 180000,
         "type": "animals"
     },
     {
         "name": "Cow",
+        "gives": "Milk",
         "level": 1,
-        "buy_price": 150,
-        "sell_price": 100,
+        "buy_price": 250,
+        "sell_price": 175,
         "ready_time": 300000,
         "type": "animals"
     },
     {
         "name": "Sheep",
+        "gives": "Wool",
         "level": 3,
-        "buy_price": 200,
-        "sell_price": 140,
+        "buy_price": 300,
+        "sell_price": 220,
         "ready_time": 420000,
         "type": "animals"
     },
     {
         "name": "Goat",
+        "gives": "Cheese",
         "level": 4,
-        "buy_price": 300,
-        "sell_price": 220,
+        "buy_price": 450,
+        "sell_price": 320,
         "ready_time": 480000,
         "type": "animals"
     },
     {
         "name": "Bee Colony",
+        "gives": "Honey",
         "level": 5,
-        "buy_price": 600,
-        "sell_price": 500,
+        "buy_price": 900,
+        "sell_price": 750,
         "ready_time": 600000,
         "type": "animals"
     },
     {
         "name": "Duck",
+        "gives": "Feathers",
         "level": 3,
-        "buy_price": 250,
-        "sell_price": 200,
+        "buy_price": 350,
+        "sell_price": 280,
         "ready_time": 240000,
         "type": "animals"
     },
     {
-        "name": "Wheat Seeds",
+        "name": "Test Seeds",
+        "gives": "Test Prod",
         "level": 1,
-        "buy_price": 5,
-        "sell_price": 3,
+        "buy_price": 1,
+        "sell_price": 1,
+        "ready_time": 0,
+        "type": "seeds"
+    },
+    {
+        "name": "Wheat Seeds",
+        "gives": "Wheat",
+        "level": 1,
+        "buy_price": 8,
+        "sell_price": 5,
         "ready_time": 120000,
         "type": "seeds"
     },
     {
         "name": "Corn Seeds",
+        "gives": "Corn",
         "level": 1,
-        "buy_price": 10,
-        "sell_price": 7,
+        "buy_price": 15,
+        "sell_price": 10,
         "ready_time": 240000,
         "type": "seeds"
     },
     {
         "name": "Carrot Seeds",
+        "gives": "Carrot",
         "level": 2,
-        "buy_price": 15,
-        "sell_price": 10,
+        "buy_price": 22,
+        "sell_price": 16,
         "ready_time": 360000,
         "type": "seeds"
     },
     {
         "name": "Pumpkin Seeds",
+        "gives": "Pumpkin",
         "level": 2,
-        "buy_price": 25,
-        "sell_price": 18,
+        "buy_price": 40,
+        "sell_price": 30,
         "ready_time": 600000,
         "type": "seeds"
     },
     {
         "name": "Strawberry Seeds",
+        "gives": "Strawberry",
         "level": 3,
-        "buy_price": 35,
-        "sell_price": 28,
+        "buy_price": 50,
+        "sell_price": 38,
         "ready_time": 900000,
         "type": "seeds"
     },
     {
         "name": "Blueberry Seeds",
+        "gives": "Blueberry",
         "level": 4,
-        "buy_price": 50,
-        "sell_price": 40,
+        "buy_price": 70,
+        "sell_price": 55,
         "ready_time": 1200000,
         "type": "seeds"
     },
     {
         "name": "Coffee Seeds",
+        "gives": "Coffee Beans",
         "level": 5,
-        "buy_price": 100,
-        "sell_price": 80,
+        "buy_price": 150,
+        "sell_price": 110,
         "ready_time": 2400000,
         "type": "seeds"
     },
     {
         "name": "Tomato Seeds",
+        "gives": "Tomato",
         "level": 3,
-        "buy_price": 45,
-        "sell_price": 38,
+        "buy_price": 60,
+        "sell_price": 45,
         "ready_time": 1500000,
         "type": "seeds"
     },
     {
         "name": "Potato Seeds",
+        "gives": "Potato",
         "level": 2,
-        "buy_price": 30,
-        "sell_price": 22,
+        "buy_price": 45,
+        "sell_price": 35,
         "ready_time": 1800000,
         "type": "seeds"
     }
