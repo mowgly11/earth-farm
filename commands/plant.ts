@@ -56,8 +56,7 @@ export async function execute(interaction: CommandInteraction) {
     await database.plantSeed(userProfile, item, findItemInDatabase?.ready_time, findItemInDatabase.gives);
   }
   
-  if (typeof userProfile.markModified === "function") userProfile.markModified("farm");
-  await userProfile.save();
+  await database.saveNestedObject(userProfile, "farm");
 
   return interaction.editReply({ content: `Successfully planted **${quantity}** of **${findItemInDatabase.name}**. it will be ready in **${findItemInDatabase.ready_time / 1000}s**` });
 }
