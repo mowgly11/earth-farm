@@ -3,6 +3,9 @@ import { token, mongo_connection } from './config.json';
 import { deployCommands, flushCommands } from './handlers/command.ts';
 import { commands } from './commands';
 import MongooseInit from "./database/connect.ts";
+import express from "express";
+
+const app = express();
  
 const databaseConnection = new MongooseInit(mongo_connection);
 databaseConnection.connect();
@@ -27,3 +30,7 @@ client.on("interactionCreate", async (interaction) => {
 });
 
 client.login(token);
+
+app.listen(8080, () => {
+  console.log("Server is running on port 8080");
+});

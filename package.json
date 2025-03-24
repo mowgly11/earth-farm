@@ -13,8 +13,10 @@
   },
   "dependencies": {
     "@hapi/boom": "^10.0.1",
+    "@types/express": "^5.0.1",
     "canvas": "^3.1.0",
     "discord.js": "^14.17.3",
+    "express": "^4.21.2",
     "mongoose": "^8.9.6",
     "pino": "^9.1.0"
   }
