@@ -74,10 +74,14 @@ export async function execute(interaction: CommandInteraction) {
   }];
 
   const farmerEmbed = new EmbedBuilder()
-    .setTitle(`${user.username}'s Stats`)
-    .setColor("Yellow")
+    .setTitle(`👤 ${user.username}'s Profile`)
+    .setColor("#FFD700")
+    .setThumbnail(interaction.user.displayAvatarURL())
+    .setDescription(`**Level ${user?.level}** Farmer`)
     .addFields(...userInfoFields)
-    .setImage("https://i.imgur.com/NiXXCZf.png")
+    .setFooter({ text: `Farm Level ${user?.farm?.level}` })
+    .setTimestamp()
+    .setImage("https://i.imgur.com/NiXXCZf.png");
 
   await interaction.editReply({ embeds: [farmerEmbed] });
 }

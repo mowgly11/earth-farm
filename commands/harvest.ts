@@ -3,7 +3,7 @@ import database from "../database/methods.ts";
 
 export const data = new SlashCommandBuilder()
   .setName("harvest")
-  .setDescription("Harvests all matured crops.")
+  .setDescription("Harvests all matured crops and animal products.")
 
 export async function execute(interaction: CommandInteraction) {
   await interaction.deferReply();
@@ -21,8 +21,10 @@ export async function execute(interaction: CommandInteraction) {
 
   if (storageLeft <= 0) return interaction.editReply({ content: "storage limit exceeded." });
 
-  const harvested = await database.harvestReadyPlants(userProfile, storageLeft);
-  const harvestedString = stringifyProductsList(harvested);
+  const harvestedPlants = await database.harvestReadyPlants(userProfile, storageLeft);
+  const harvestedAnimals = await database.harvestReadyAnimals(userProfile, storageLeft - harvestedPlants.length);
+  
+  const harvestedString = stringifyProductsList([...harvestedPlants, ...harvestedAnimals]);
 
   await interaction.editReply({ content: harvestedString === "" ? "Nothing to harvest." : `Successfully harvested ${harvestedString}` });
 

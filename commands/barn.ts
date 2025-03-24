@@ -25,11 +25,14 @@ export async function execute(interaction: CommandInteraction) {
     userProfile.storage.products.forEach((v:any) => storageCount += v.amount);
 
     const storageEmbed = new EmbedBuilder()
-        .setAuthor({ name: user.username })
-        .setTitle(`${user.username}'s barn - ${storageCount}/${userProfile.farm.storage_limit}`)
-        .setColor("Yellow")
+        .setAuthor({ name: user.username, iconURL: user.displayAvatarURL() })
+        .setTitle(`🏭 ${user.username}'s Barn`)
+        .setColor("#FFD700")
+        .setDescription(`Storage: **${storageCount}/${userProfile.farm.storage_limit}** slots used`)
         .addFields(...formatstorage(userProfile.storage))
-        .setImage("https://i.imgur.com/JhrMFfI.png")
+        .setFooter({ text: `Farm Level ${userProfile.farm.level}` })
+        .setTimestamp()
+        .setImage("https://i.imgur.com/JhrMFfI.png");
 
     return interaction.editReply({ embeds: [storageEmbed] });
 }

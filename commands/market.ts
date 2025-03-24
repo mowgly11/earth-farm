@@ -2,45 +2,76 @@ import { CommandInteraction, SlashCommandBuilder, EmbedBuilder, ButtonBuilder, B
 import marketItems from "../config/items/market_items.json";
 import upgrades from "../config/upgrades/farms.json";
 
-let seedsData = stringifyMarketData(marketItems, "seeds");
-let animalsData = stringifyMarketData(marketItems, "animals");
-let upgradesData = stringifyMarketData(upgrades);
-
 export const data = new SlashCommandBuilder()
     .setName("market")
     .setDescription("shows the current market items");
 
 export async function execute(interaction: CommandInteraction) {
     const marketLandingPage = new EmbedBuilder()
-        .setTitle("The Market")
-        .setColor("Yellow")
+        .setTitle("🏪 The Market")
+        .setColor("#FFD700")
         .setTimestamp()
-        .setDescription("Welcome to the farm market! here you can buy all the items you need to move further with your farming.\n check the buttons down below to explore the current market items.")
-        .setImage("https://i.postimg.cc/BnK28KBq/farm.webp")
+        .setDescription("Welcome to the farm market! Here you can buy all the items you need to move further with your farming.\n\n**Categories:**\n• 🤠 Animals - Raise animals for products\n• 🌱 Seeds - Plant and harvest crops\n• ⏫ Upgrades - Improve your farm\n\nCheck the buttons below to explore the current market items.")
+        .setImage("https://i.postimg.cc/BnK28KBq/farm.webp");
 
     const marketAnimalsPage = new EmbedBuilder()
-        .setTitle("Animals")
+        .setTitle("🤠 Animals Market")
         .setTimestamp()
+        .setColor("#FFD700")
+        .setDescription("Browse available animals to raise on your farm.")
         .setThumbnail("https://i.imgur.com/Lnsq74n.png")
-        .setColor("Yellow")
-        .setDescription(animalsData)
-        .setImage("https://i.postimg.cc/BnK28KBq/farm.webp")
+        .setFooter({ text: "Tip: Use /buy to purchase animals" })
+        .setImage("https://i.postimg.cc/BnK28KBq/farm.webp");
 
     const marketSeedsPage = new EmbedBuilder()
-        .setTitle("Seeds")
-        .setThumbnail("https://i.imgur.com/pVTdWwO.png")
+        .setTitle("🌱 Seeds Market")
         .setTimestamp()
-        .setColor("Yellow")
-        .setDescription(seedsData)
-        .setImage("https://i.postimg.cc/BnK28KBq/farm.webp")
+        .setColor("#FFD700")
+        .setDescription("Browse available seeds to plant on your farm.")
+        .setThumbnail("https://i.imgur.com/pVTdWwO.png")
+        .setFooter({ text: "Tip: Use /buy to purchase seeds" })
+        .setImage("https://i.postimg.cc/BnK28KBq/farm.webp");
 
     const marketUpgradesPage = new EmbedBuilder()
-        .setTitle("Upgrades")
-        .setThumbnail("https://i.imgur.com/KNAbCUO.png")
+        .setTitle("⏫ Farm Upgrades")
         .setTimestamp()
-        .setColor("Yellow")
-        .setDescription(upgradesData)
-        .setImage("https://i.postimg.cc/BnK28KBq/farm.webp")
+        .setColor("#FFD700")
+        .setDescription("Upgrade your farm to increase slots and storage capacity.")
+        .setThumbnail("https://i.imgur.com/KNAbCUO.png")
+        .setFooter({ text: "Tip: Use /upgradefarm to upgrade your farm" })
+        .setImage("https://i.postimg.cc/BnK28KBq/farm.webp");
+
+    // Format market items
+    const animals = marketItems.filter(item => item.type === "animals");
+    const seeds = marketItems.filter(item => item.type === "seeds");
+
+    // Add animals to the animals page
+    animals.forEach(animal => {
+        marketAnimalsPage.addFields({
+            name: animal.name,
+            value: `**Level:** ${animal.level}\n**Price:** ${animal.buy_price} 🪙\n**Ready Time:** ${animal.ready_time / 1000 / 60}mins\n**Produces:** ${animal.gives}`,
+            inline: true
+        });
+    });
+
+    // Add seeds to the seeds page
+    seeds.forEach(seed => {
+        marketSeedsPage.addFields({
+            name: seed.name,
+            value: `**Level:** ${seed.level}\n**Price:** ${seed.buy_price} 🪙\n**Ready Time:** ${seed.ready_time / 1000 / 60}mins\n**Produces:** ${seed.gives}`,
+            inline: true
+        });
+    });
+
+    // Add upgrades to the upgrades page
+    upgrades.forEach(upgrade => {
+        if (upgrade.level === 1) return; // Skip the first level as it's the starting point
+        marketUpgradesPage.addFields({
+            name: `Level ${upgrade.level}`,
+            value: `**Price:** ${upgrade.price} 🪙\n**Crop Slots:** ${upgrade.available_crop_slots}\n**Animal Slots:** ${upgrade.available_animal_slots}\n**Storage:** ${upgrade.storage_limit}`,
+            inline: true
+        });
+    });
 
     const animalsBtn = new ButtonBuilder()
         .setCustomId('animals')
@@ -103,23 +134,4 @@ export async function execute(interaction: CommandInteraction) {
         row.components.forEach(component => component.data.disabled = true);
         await interaction.editReply({ components: [row] });
     })
-}
-
-function stringifyMarketData(data: Array<Record<string, string | number>>, type: "seeds" | "animals" | null = null): string {
-    let finalString: string = "";
-    data.map(record => {
-        const keys = Object.keys(record);
-
-        if (record['type'] && record['type'] !== type) return;
-
-        keys.map(key => {
-            let newReadyTime: string = "";
-            let cleanKey = key.replace("_", " ");
-            if (key === "ready_time") newReadyTime = `${Number(record[key]) / 1000 / 60}mins`;
-            finalString += `**${cleanKey}:** ${key==="ready_time" ? newReadyTime : record[key]}\n`;
-        });
-        
-        finalString += "\n\n";
-    })
-    return finalString;
 }

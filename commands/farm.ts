@@ -21,10 +21,13 @@ export async function execute(interaction: CommandInteraction) {
     if (!userProfile) return interaction.editReply({ content: `${user.username}'s farm wasn't found.` });
 
     const farmerEmbed = new EmbedBuilder()
-        .setTitle(`${user.username}'s Farm stats`)
-        .setColor("Yellow")
+        .setTitle(`🌾 ${user.username}'s Farm`)
+        .setColor("#FFD700")
         .setDescription(stringifySlots(userProfile.farm))
-        .setImage("https://i.imgur.com/NiXXCZf.png")
+        .setThumbnail(user.displayAvatarURL())
+        .setFooter({ text: `Farm Level ${userProfile.farm.level}` })
+        .setTimestamp()
+        .setImage("https://i.imgur.com/NiXXCZf.png");
 
     await interaction.editReply({ embeds: [farmerEmbed] });
 }
@@ -42,7 +45,7 @@ function stringifySlots(farmDetails: any) {
                 let slotType = keys[i] === "occupied_crop_slots" ? "plant" : "animal";
                 let objKeys = Object.keys(val[j]);
                 for (let k = 0; k < objKeys.length; k++) {
-                    if (objKeys[k] === "gives") continue;
+                    if (objKeys[k] === "gives" || objKeys[k] === "ready_time") continue;
                     strOfUserData += `**Slot ${j + 1} ${slotType} ${objKeys[k].replace(/_/g, " ")}:** ${objKeys[k] === "ready_at" ? String(((val[j][objKeys[k]] - Date.now()) / 1000) < 0 ? "Ready!" : ((val[j][objKeys[k]] - Date.now()) / 1000).toFixed(0) + 's') : val[j][objKeys[k]]}\n`;
                 }
                 strOfUserData += "\n";

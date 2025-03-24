@@ -17,10 +17,12 @@ export async function execute(interaction: CommandInteraction) {
     if (userProfile.gold < nextLevelData.price) return interaction.reply({ content: `you do not have enough gold to upgrade. the next farm level is priced at **${nextLevelData.price}** 🪙` });
 
     const confirmationEmbed = new EmbedBuilder()
-        .setTitle(`Upgrade Farm to level ${userProfile.farm.level + 1}`)
-        .setDescription(`are you sure you want to upgrade for **${nextLevelData.price}** 🪙?`)
+        .setTitle(`⚡ Farm Upgrade to Level ${userProfile.farm.level + 1}`)
+        .setDescription(`**Current Level:** ${userProfile.farm.level}\n**Next Level:** ${userProfile.farm.level + 1}\n**Cost:** **${nextLevelData.price}** 🪙\n\n**Benefits:**\n• +${nextLevelData.available_crop_slots - userProfile.farm.available_crop_slots} Crop Slots\n• +${nextLevelData.available_animal_slots - userProfile.farm.available_animal_slots} Animal Slots\n• +${nextLevelData.storage_limit - userProfile.farm.storage_limit} Storage Space\n\nAre you sure you want to upgrade?`)
         .setTimestamp()
-        .setColor("Green")
+        .setColor("#FFD700")
+        .setThumbnail("https://i.imgur.com/KNAbCUO.png")
+        .setFooter({ text: `Current Gold: ${userProfile.gold} 🪙` });
 
     const confirmBtn = new ButtonBuilder().setCustomId("confirm").setLabel("Confirm").setStyle(ButtonStyle.Success);
     const cancelBtn = new ButtonBuilder().setCustomId("cancel").setLabel("Cancel").setStyle(ButtonStyle.Danger);
