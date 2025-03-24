@@ -11,6 +11,10 @@ const databaseConnection = new MongooseInit(mongo_connection);
 databaseConnection.connect();
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+
+app.listen(8080, () => {
+  console.log("Server is running on port 8080");
+});
  
 client.once(Events.ClientReady, async readyClient => {
   await deployCommands();
@@ -30,7 +34,3 @@ client.on("interactionCreate", async (interaction) => {
 });
 
 client.login(token);
-
-app.listen(8080, () => {
-  console.log("Server is running on port 8080");
-});
