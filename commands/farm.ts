@@ -13,8 +13,8 @@ export const data = new SlashCommandBuilder()
 export async function execute(interaction: CommandInteraction) {
     let user: any = interaction.options.get("farmer")?.user;
     if (!user) user = interaction.user;
-    
-    if(user.bot) return interaction.reply({ content: "you can't interact with bots!", flags: MessageFlags.Ephemeral});
+
+    if (user.bot) return interaction.reply({ content: "you can't interact with bots!", flags: MessageFlags.Ephemeral });
     await interaction.deferReply();
 
     let userProfile: any = await database.findUser(user.id);
@@ -35,18 +35,20 @@ function stringifySlots(farmDetails: any) {
     for (let i = 0; i < keys.length; i++) {
         const val = farmDetails[keys[i]];
         if (typeof val !== "object") strOfUserData += `**${keys[i].replace(/_/g, " ")}:** ${String(val)}\n`;
-        
+
         else {
+            strOfUserData += "\n";
             for (let j = 0; j < val.length; j++) {
+                let slotType = keys[i] === "occupied_crop_slots" ? "plant" : "animal";
                 let objKeys = Object.keys(val[j]);
                 for (let k = 0; k < objKeys.length; k++) {
                     if (objKeys[k] === "gives") continue;
-                    strOfUserData += `**Slot ${j + 1} plant ${objKeys[k].replace(/_/g, " ")}:** ${objKeys[k] === "ready_at" ? String(((val[j][objKeys[k]] - Date.now()) / 1000) < 0 ? "Ready!" : ((val[j][objKeys[k]] - Date.now()) / 1000).toFixed(0) + 's') : val[j][objKeys[k]]}\n`;
+                    strOfUserData += `**Slot ${j + 1} ${slotType} ${objKeys[k].replace(/_/g, " ")}:** ${objKeys[k] === "ready_at" ? String(((val[j][objKeys[k]] - Date.now()) / 1000) < 0 ? "Ready!" : ((val[j][objKeys[k]] - Date.now()) / 1000).toFixed(0) + 's') : val[j][objKeys[k]]}\n`;
                 }
-                strOfUserData+="\n";
+                strOfUserData += "\n";
             }
         }
     }
-    
+
     return strOfUserData;
 }
