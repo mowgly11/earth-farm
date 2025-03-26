@@ -14,8 +14,11 @@ export type OccupiedCropSlot = {
 export type OccupiedAnimalSlot = {
     animal: string,
     started: boolean,
-    ready_in: number,
-    product: string
+    ready_at: number,
+    ready_time: number,
+    gives: string,
+    total_boost: number,
+    boost_expires_at: number
 }
 
 export type Farm = {
@@ -39,3 +42,9 @@ export type User = {
 }
 
 export type Upgrades = "Fertilizer" | "Tractor" | "Greenhouse" | "Sprinkler System";
+
+export interface Actions {
+    lastFed: number;
+    lastPet: number;
+    lastCleaned: number;
+}
