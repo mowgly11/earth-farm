@@ -1,6 +1,6 @@
 {
     "token": "ODg4MDgxMjUyNDEyOTczMTM3.G0Bzm3.DaZ7xnFLqYg9wB1_6cJVV_8g3HUp2v3BJY5W2E",
     "clientid": "888081252412973137",
-    "mongo_connection": "mongodb+srv://earthbotdb:11UrQ7U1f5i8kyt6@earthbot.att6w.mongodb.net/?retryWrites=true&w=majority&appName=earthbot"
+    "mongo_connection": "mongodb://127.0.0.1:27017/test"
     
 }
