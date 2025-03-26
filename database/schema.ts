@@ -11,6 +11,11 @@ const schema: Schema = new Schema({
     xp: { type: Number, default: configuration.starter_xp },
     gold: { type: Number, default: configuration.starter_money },
     daily: { type: Number, default: 0 },
+    actions: {
+        lastFed: { type: Number, default: 0 },
+        lastPet: { type: Number, default: 0 },
+        lastCleaned: { type: Number, default: 0 }
+    },
     farm: {
         level: { type: Number, default: configuration.starter_farm_level },
         available_crop_slots: { type: Number, default: farms[0].available_crop_slots },
