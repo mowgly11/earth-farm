@@ -19,7 +19,6 @@ export async function execute(interaction: CommandInteraction) {
         .setTimestamp()
         .setColor("#FFD700")
         .setDescription("Browse available animals to raise on your farm.")
-        .setThumbnail("https://i.imgur.com/Lnsq74n.png")
         .setFooter({ text: "Tip: Use /buy to purchase animals" })
         .setImage("https://i.postimg.cc/BnK28KBq/farm.webp");
 
@@ -28,7 +27,6 @@ export async function execute(interaction: CommandInteraction) {
         .setTimestamp()
         .setColor("#FFD700")
         .setDescription("Browse available seeds to plant on your farm.")
-        .setThumbnail("https://i.imgur.com/pVTdWwO.png")
         .setFooter({ text: "Tip: Use /buy to purchase seeds" })
         .setImage("https://i.postimg.cc/BnK28KBq/farm.webp");
 
@@ -37,7 +35,6 @@ export async function execute(interaction: CommandInteraction) {
         .setTimestamp()
         .setColor("#FFD700")
         .setDescription("Upgrade your farm to increase slots and storage capacity.")
-        .setThumbnail("https://i.imgur.com/KNAbCUO.png")
         .setFooter({ text: "Tip: Use /upgradefarm to upgrade your farm" })
         .setImage("https://i.postimg.cc/BnK28KBq/farm.webp");
 
