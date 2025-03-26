@@ -23,6 +23,11 @@ export async function execute(interaction: CommandInteraction) {
                 inline: false
             },
             {
+                name: "🐮 Animal Care Actions",
+                value: "`/feed [slot]` - Feed an animal to boost production by 5%\n`/pet [slot]` - Pet an animal to boost production by 1%\n`/clean [slot]` - Clean an animal's area to boost production by 3%\n\n*Note: Boosts last for 2 hours and stack with each other!*",
+                inline: false
+            },
+            {
                 name: "🏪 Market Commands",
                 value: "`/market` - Browse the market for items\n`/buy [item] [quantity]` - Purchase items from the market\n`/sell_item [item] [quantity]` - Sell market items\n`/sell_product [product] [quantity]` - Sell harvested products",
                 inline: false
