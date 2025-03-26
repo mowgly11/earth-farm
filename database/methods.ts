@@ -163,8 +163,10 @@ class DatabaseMethods {
                 });
             } else userProfile.storage.products[foundProductInStorageIndex].amount += 1;
 
-            // Reset the ready timer instead of removing the animal
+            // Reset the ready timer and boost instead of removing the animal
             userProfile.farm.occupied_animal_slots[i].ready_at = Date.now() + userProfile.farm.occupied_animal_slots[i].ready_time;
+            userProfile.farm.occupied_animal_slots[i].total_boost = 0;
+            userProfile.farm.occupied_animal_slots[i].boost_expires_at = 0; // Reset boost expiration
             userProfile.xp += findItemInDatabase?.xp_gain;
         }
 
