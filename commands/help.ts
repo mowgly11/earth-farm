@@ -29,7 +29,7 @@ export async function execute(interaction: CommandInteraction) {
             },
             {
                 name: "🏪 Market Commands",
-                value: "`/market` - Browse the market for items\n`/buy [item] [quantity]` - Purchase items from the market\n`/sell_item [item] [quantity]` - Sell market items\n`/sell_product [product] [quantity]` - Sell harvested products",
+                value: "`/market` - Browse the market for items\n`/buy [item] [quantity]` - Purchase items from the market\n`/sell item [name] [quantity]` - Sell market items\n`/sell product [name] [quantity]` - Sell harvested products",
                 inline: false
             },
             {
