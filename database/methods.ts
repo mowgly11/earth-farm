@@ -117,11 +117,21 @@ class DatabaseMethods {
     }
 
     async upgradeFarm(userProfile: any, toLevelData: Record<string, string | number>): Promise<void> {
-        const keys = Object.keys(userProfile.farm);
-        
-        keys.forEach((key:string) => {
-            userProfile.farm[key] = toLevelData[key];
-        });
+        // Store the current occupied slots
+        const occupiedCropSlots = userProfile.farm.occupied_crop_slots;
+        const occupiedAnimalSlots = userProfile.farm.occupied_animal_slots;
+        const upgrades = userProfile.farm.upgrades;
+
+        // Update only the level-specific properties
+        userProfile.farm.level = toLevelData.level;
+        userProfile.farm.available_crop_slots = toLevelData.available_crop_slots;
+        userProfile.farm.available_animal_slots = toLevelData.available_animal_slots;
+        userProfile.farm.storage_limit = toLevelData.storage_limit;
+
+        // Restore the occupied slots
+        userProfile.farm.occupied_crop_slots = occupiedCropSlots;
+        userProfile.farm.occupied_animal_slots = occupiedAnimalSlots;
+        userProfile.farm.upgrades = upgrades;
 
         await userProfile.save();
     }
