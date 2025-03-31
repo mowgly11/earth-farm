@@ -14,27 +14,32 @@ export async function execute(interaction: CommandInteraction) {
         .addFields(
             {
                 name: "👤 Profile Commands",
-                value: "`/farmer [target]` - Create or view your farming profile\n`/daily` - Collect your daily gold reward\n`/gold [farmer]` - Check your gold balance\n`/xp [farmer]` - View your experience points and level progress",
+                value: "`/farmer` - Create or view your profile\n`/inventory` - View your inventory\n`/stats` - View your stats\n`/leaderboard` - View the leaderboard",
                 inline: false
             },
             {
                 name: "🌱 Farming Commands",
-                value: "`/farm [farmer]` - View your farm stats and slots\n`/plant [seed] [amount]` - Plant seeds in your farm\n`/harvest` - Harvest ready crops and animal products\n`/raise [animal]` - raise an animal on your farm\n`/barn [farmer]` - View your storage and inventory",
+                value: "`/farm` - View your farm\n`/plant` - Plant seeds\n`/harvest` - Harvest crops\n`/upgradefarm` - Upgrade your farm\n`/buy` - Buy items from the market\n`/sell` - Sell items to the market\n`/trade` - Trade with other players",
                 inline: false
             },
             {
                 name: "🐮 Animal Care Actions",
-                value: "`/feed [slot]` - Feed an animal to boost production by 5%\n`/pet [slot]` - Pet an animal to boost production by 1%\n`/clean [slot]` - Clean an animal's area to boost production by 3%\n\n*Note: Boosts last for 2 hours and stack with each other!*",
+                value: "`/feed [slot]` - Boosts production by 5%\n`/pet [slot]` - Boosts production by 1%\n`/clean [slot]` - Boosts production by 3%\n*Boosts last for 2 hours and can stack*",
                 inline: false
             },
             {
-                name: "🏪 Market Commands",
-                value: "`/market` - Browse the market for items\n`/buy [item] [quantity]` - Purchase items from the market\n`/sell item [name] [quantity]` - Sell market items\n`/sell product [name] [quantity]` - Sell harvested products",
+                name: "🛠️ Common Commands",
+                value: "`/avatar [user]` - Display a user's avatar\n`/ping` - Check bot latency",
                 inline: false
             },
             {
-                name: "⚡ Upgrade Commands",
-                value: "`/upgradefarm` - Upgrade your farm to get more slots and storage",
+                name: "📊 Market Commands",
+                value: "`/market` - View the market\n`/buy` - Buy items from the market\n`/sell` - Sell items to the market\n`/trade` - Trade with other players",
+                inline: false
+            },
+            {
+                name: "❓ Help",
+                value: "`/help` - Show this help message",
                 inline: false
             }
         )
