@@ -2,6 +2,7 @@ import { ChatInputCommandInteraction, SlashCommandBuilder, MessageFlags } from "
 import marketItems from "../config/items/market_items.json";
 import products from "../config/items/products.json";
 import database from "../database/methods.ts";
+import { logTransaction } from "../utils/transaction_logger.ts";
 
 // Prepare choices for both items and products
 let itemChoices: Array<ChoicesArray> = marketItems.map(option => ({
@@ -80,8 +81,23 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         const findItemInDatabase = marketItems.find(v => v.name === name)!;
         const sellingPrice = Number(findItemInDatabase?.sell_price!) * quantity;
 
+        const goldBefore = userProfile.gold;
         await database.removeItemFromstorage(userProfile, name, quantity, "market_items");
         await database.makePayment(userProfile, sellingPrice);
+        const goldAfter = userProfile.gold;
+
+        // Log the transaction
+        await logTransaction(interaction.client, {
+            type: "sell",
+            initiator: interaction.user.id,
+            initiatorUsername: interaction.user.username,
+            item: name,
+            quantity: quantity,
+            price: sellingPrice,
+            isProduct: false,
+            initiatorGoldBefore: goldBefore,
+            initiatorGoldAfter: goldAfter
+        });
 
         return interaction.editReply({ content: `Successfully sold ${quantity} of ${name} for a total price of ${sellingPrice} 🪙` });
 
@@ -94,8 +110,23 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         const findItemInDatabase = products.find(v => v.name === name)!;
         const sellingPrice = Number(findItemInDatabase?.sell_price!) * quantity;
 
+        const goldBefore = userProfile.gold;
         await database.removeItemFromstorage(userProfile, name, quantity, "products");
         await database.makePayment(userProfile, sellingPrice);
+        const goldAfter = userProfile.gold;
+
+        // Log the transaction
+        await logTransaction(interaction.client, {
+            type: "sell",
+            initiator: interaction.user.id,
+            initiatorUsername: interaction.user.username,
+            item: name,
+            quantity: quantity,
+            price: sellingPrice,
+            isProduct: true,
+            initiatorGoldBefore: goldBefore,
+            initiatorGoldAfter: goldAfter
+        });
 
         return interaction.editReply({ content: `Successfully sold ${quantity} of ${name} for a total price of ${sellingPrice} 🪙` });
     }
