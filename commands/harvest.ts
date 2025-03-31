@@ -22,7 +22,7 @@ export async function execute(interaction: CommandInteraction) {
   if (storageLeft <= 0) return interaction.editReply({ content: "storage limit exceeded." });
 
   const harvestedPlants = await database.harvestReadyPlants(userProfile, storageLeft);
-  const harvestedAnimals = await database.harvestReadyAnimals(userProfile, storageLeft - harvestedPlants.length);
+  const harvestedAnimals = await database.gatherReadyPlants(userProfile, storageLeft - harvestedPlants.length);
   
   const harvestedString = stringifyProductsList([...harvestedPlants, ...harvestedAnimals]);
 
