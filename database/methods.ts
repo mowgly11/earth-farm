@@ -145,7 +145,7 @@ class DatabaseMethods {
         });
     }
 
-    async gatherReadyPlants(userProfile: any, storageLeft: number) {
+    async gatherReadyProducts(userProfile: any, storageLeft: number) {
         const harvestAnimalsLength = userProfile.farm.occupied_animal_slots.length;
         let harvestLoopLength = 0;
 
