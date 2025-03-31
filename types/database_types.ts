@@ -25,6 +25,7 @@ export type Farm = {
     level: number;
     crop_slots: number;
     animal_slots: number;
+    storage_limit: number;
 };
 
 export type storage = {
