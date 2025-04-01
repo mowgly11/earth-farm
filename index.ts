@@ -3,6 +3,11 @@ import { token, mongo_connection } from './config.json';
 import { deployCommands, flushCommands } from './handlers/command.ts';
 import { commands } from './commands';
 import MongooseInit from "./database/connect.ts";
+import NodeCache from 'node-cache';
+
+const userProfileCache = new NodeCache({ stdTTL: 3600, checkperiod: 120 });
+
+export { userProfileCache };
  
 const databaseConnection = new MongooseInit(mongo_connection);
 databaseConnection.connect();
