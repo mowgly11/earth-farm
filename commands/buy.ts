@@ -1,4 +1,4 @@
-import { CommandInteraction, SlashCommandBuilder, MessageFlags } from "discord.js";
+import { CommandInteraction, SlashCommandBuilder } from "discord.js";
 import marketItems from "../config/items/market_items.json";
 import database from "../database/methods.ts";
 import { logTransaction } from "../utils/transaction_logger.ts";

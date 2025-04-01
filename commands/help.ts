@@ -14,7 +14,7 @@ export async function execute(interaction: CommandInteraction) {
         .addFields(
             {
                 name: "👤 Profile Commands",
-                value: "`/farmer` - Create or view your profile\n`/inventory` - View your inventory\n`/stats` - View your stats\n`/leaderboard` - View the leaderboard",
+                value: "`/farmer` - Create or view your profile\n`/leaderboard` - View the leaderboard",
                 inline: false
             },
             {
