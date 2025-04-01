@@ -35,7 +35,10 @@ export async function execute(interaction: CommandInteraction) {
     const currentLevel = userData?.level;
     const requiredXp = levels.find(obj => obj.level === currentLevel)?.xp_to_upgrade!;
 
-    const barsToAdd = Math.floor((xp/requiredXp*10)); // dividing the current xp on the required xp. gives a float value, we round it down to give us the amount of bars needed
+    let barsToAdd: number = 0;
+
+    if(xp >= requiredXp) barsToAdd = 10;
+    else barsToAdd = Math.floor((xp/requiredXp*10)); // dividing the current xp on the required xp. gives a float value, we round it down to give us the amount of bars needed
 
     const canvas = Canvas.createCanvas(400, 100);
     const ctx = canvas.getContext('2d');
