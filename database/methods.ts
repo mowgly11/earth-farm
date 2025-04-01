@@ -14,6 +14,15 @@ class DatabaseMethods {
         }
     }
 
+    async getAllUsers(): Promise<Document[]> {
+        try {
+            return await schema.find({});
+        } catch (err) {
+            console.error(err);
+            return [];
+        }
+    }
+
     async createUser(id: string, username: string): Promise<any> {
         try {
             const createUser = await schema.create({
