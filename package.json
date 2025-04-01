@@ -3,7 +3,7 @@
   "module": "index.ts",
   "type": "module",
   "scripts": {
-    "start": "bun run --watch index.ts"
+    "bot": "bun run --watch index.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"
@@ -16,6 +16,7 @@
     "canvas": "^3.1.0",
     "discord.js": "^14.17.3",
     "mongoose": "^8.9.6",
+    "node-cache": "^5.1.2",
     "pino": "^9.1.0"
   }
 }
