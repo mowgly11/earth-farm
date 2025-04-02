@@ -37,6 +37,6 @@
     },
     {
         "level": 10,
-        "xp_to_upgrade": 250000
+        "xp_to_upgrade": null
     }
 ]
