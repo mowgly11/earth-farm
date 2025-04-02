@@ -114,9 +114,9 @@ class DatabaseMethods {
     }
 
     async checkEligibleForlevelUp(userProfile: any): Promise<boolean> {
-        let currentLevelObj = levels.find((v: Record<string, number>) => v.level === userProfile.level)!;
+        let currentLevelObj = levels.find((v: Record<string, number | null>) => v.level === userProfile.level)!;
 
-        if (currentLevelObj?.xp_to_upgrade <= userProfile.xp) {
+        if (currentLevelObj?.xp_to_upgrade && currentLevelObj?.xp_to_upgrade <= userProfile.xp) {
             userProfile.level += 1;
             await userProfile.save();
             return true;
