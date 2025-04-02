@@ -1,5 +1,7 @@
 import { CommandInteraction, SlashCommandBuilder, MessageFlags } from "discord.js";
 import database from "../database/methods.js";
+import { userProfileCache } from "../index.ts";
+import schema from "../database/schema.ts";
 
 export const data = new SlashCommandBuilder()
     .setName("daily")
@@ -11,18 +13,46 @@ export async function execute(interaction: CommandInteraction) {
     await interaction.deferReply();
     if (!user) user = interaction.user;
 
-    let userProfile: any = await database.findUser(user?.id);
-    if (!userProfile) return interaction.editReply({ content: "please use `/farmer` before trying to claim your daily reward." });
+    // Check cache first
+    let userProfile: any = userProfileCache.get(user.id);
+    
+    // If not in cache, get from database and cache it
+    if (!userProfile) {
+        const dbProfile = await database.findUser(user.id);
+        if (!dbProfile) return interaction.editReply({ content: "please use `/farmer` before trying to claim your daily reward." });
+        
+        // Cache the plain object
+        userProfile = (dbProfile as any).toObject();
+        userProfileCache.set(user.id, userProfile);
+    }
     
     let timeLeft = userProfile.daily - Date.now();
     if (timeLeft > 0) return interaction.editReply({ content: `You still have to wait **${formatTimestamp(timeLeft)}** to claim your next daily reward.` });
 
     let reward = Math.floor(Math.random() * (250 - 100 + 1)) + 100;
 
-    userProfile.daily = Date.now() + 1000 * 60 * 60 * 24; // 24h
-    userProfile.gold += reward;
+    // Update cache immediately
+    const updatedProfile = { ...userProfile };
+    updatedProfile.daily = Date.now() + 1000 * 60 * 60 * 24; // 24h
+    updatedProfile.gold += reward;
+    
+    // Update cache
+    userProfileCache.set(user.id, updatedProfile);
 
-    await userProfile.save();
+    // Hydrate the cached profile into a Mongoose document
+    const dbProfile = schema.hydrate(updatedProfile);
+    if (!dbProfile) {
+        userProfileCache.del(user.id);
+        return interaction.editReply({ content: "An error occurred while processing your request." });
+    }
+
+    try {
+        await dbProfile.save();
+    } catch (error) {
+        console.error('Error updating database:', error);
+        userProfileCache.del(user.id);
+        return interaction.editReply({ content: "An error occurred while processing your request." });
+    }
 
     return interaction.editReply({ content: `${userProfile.username} has earned a total of **${reward}** 🪙` });
 }

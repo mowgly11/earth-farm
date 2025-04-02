@@ -3,6 +3,7 @@ import database from "../database/methods.ts";
 import levels from "../config/data/levels.json";
 import Canvas from 'canvas';
 import { join } from "path";
+import { userProfileCache } from "../index.ts";
 
 let baseImage: any;
 let bar: any;
@@ -28,8 +29,19 @@ export async function execute(interaction: CommandInteraction) {
     if (!user) user = interaction.user;
     
     await interaction.deferReply();
-    let userData: any = await database.findUser(user.id);
-    if(!userData) return interaction.editReply({ content: `${user.username}'s xp wasn't found.` });
+
+    // Check cache first
+    let userData: any = userProfileCache.get(user.id);
+    
+    // If not in cache, get from database and cache it
+    if (!userData) {
+        const dbProfile = await database.findUser(user.id);
+        if (!dbProfile) return interaction.editReply({ content: `${user.username}'s xp wasn't found.` });
+        
+        // Cache the plain object
+        userData = (dbProfile as any).toObject();
+        userProfileCache.set(user.id, userData);
+    }
 
     const xp = userData?.xp;
     const currentLevel = userData?.level;
@@ -38,7 +50,7 @@ export async function execute(interaction: CommandInteraction) {
     let barsToAdd: number = 0;
 
     if(xp >= requiredXp) barsToAdd = 10;
-    else barsToAdd = Math.floor((xp/requiredXp*10)); // dividing the current xp on the required xp. gives a float value, we round it down to give us the amount of bars needed
+    else barsToAdd = Math.floor((xp/requiredXp*10));
 
     const canvas = Canvas.createCanvas(400, 100);
     const ctx = canvas.getContext('2d');

@@ -1,6 +1,8 @@
 import { CommandInteraction, SlashCommandBuilder } from "discord.js";
 import database from "../database/methods.ts";
 import actions from "../config/data/actions.json";
+import { userProfileCache } from "../index.ts";
+import schema from "../database/schema.ts";
 
 export const data = new SlashCommandBuilder()
     .setName("clean")
@@ -15,13 +17,22 @@ export async function execute(interaction: CommandInteraction) {
     await interaction.deferReply();
     
     const userId = interaction.user.id;
-    const userProfile: any = await database.findUser(userId);
-    const slotNumber = interaction.options.get("slot")?.value as number;
     
+    // Check cache first
+    let userProfile: any = userProfileCache.get(userId);
+    
+    // If not in cache, get from database and cache it
     if (!userProfile) {
-        return interaction.editReply({ content: "Please create a profile first using `/farmer`!" });
+        const dbProfile = await database.findUser(userId);
+        if (!dbProfile) return interaction.editReply({ content: "Please create a profile first using `/farmer`!" });
+        
+        // Cache the plain object
+        userProfile = (dbProfile as any).toObject();
+        userProfileCache.set(userId, userProfile);
     }
 
+    const slotNumber = interaction.options.get("slot")?.value as number;
+    
     if (!userProfile.farm.occupied_animal_slots.length) {
         return interaction.editReply({ content: "You don't have any animals' area to clean!" });
     }
@@ -47,6 +58,9 @@ export async function execute(interaction: CommandInteraction) {
         return interaction.editReply({ content: `The animal in slot ${slotNumber} is ready to harvest! No need to clean its area.` });
     }
 
+    // Update cache immediately
+    const updatedProfile = { ...userProfile };
+    
     // Check if previous boost has expired
     if (animalSlot.boost_expires_at && now > animalSlot.boost_expires_at) {
         animalSlot.total_boost = 0;
@@ -63,11 +77,27 @@ export async function execute(interaction: CommandInteraction) {
     const reduction = originalTime * boostDecimal;
     animalSlot.ready_at = Math.floor(now + (originalTime - reduction));
 
-    if (!userProfile.actions) userProfile.actions = {};
-    userProfile.actions.lastCleaned = now;
+    if (!updatedProfile.actions) updatedProfile.actions = {};
+    updatedProfile.actions.lastCleaned = now;
+    
+    // Update cache
+    userProfileCache.set(userId, updatedProfile);
 
-    await database.saveNestedObject(userProfile, "farm");
-    await database.saveNestedObject(userProfile, "actions");
+    // Hydrate the cached profile into a Mongoose document
+    const dbProfile = schema.hydrate(updatedProfile);
+    if (!dbProfile) {
+        userProfileCache.del(userId);
+        return interaction.editReply({ content: "An error occurred while processing your request." });
+    }
+
+    try {
+        await database.saveNestedObject(dbProfile, "farm");
+        await database.saveNestedObject(dbProfile, "actions");
+    } catch (error) {
+        console.error('Error updating database:', error);
+        userProfileCache.del(userId);
+        return interaction.editReply({ content: "An error occurred while processing your request." });
+    }
 
     return interaction.editReply({ content: `Successfully cleaned area for animal in slot ${slotNumber}! Production speed increased by ${boost}% (Total boost: ${animalSlot.total_boost}%)` });
 }

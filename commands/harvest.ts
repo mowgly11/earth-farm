@@ -1,5 +1,7 @@
 import { CommandInteraction, SlashCommandBuilder, MessageFlags } from "discord.js";
 import database from "../database/methods.ts";
+import { userProfileCache } from "../index.ts";
+import schema from "../database/schema.ts";
 
 export const data = new SlashCommandBuilder()
   .setName("harvest")
@@ -10,8 +12,18 @@ export async function execute(interaction: CommandInteraction) {
 
   const userId = interaction.user.id;
 
-  const userProfile: any = await database.findUser(userId);
-  if (!userProfile) return interaction.editReply({ content: "Please make a profile using `/farmer` before trying to buy anything from the market." });
+  // Check cache first
+  let userProfile: any = userProfileCache.get(userId);
+  
+  // If not in cache, get from database and cache it
+  if (!userProfile) {
+    const dbProfile = await database.findUser(userId);
+    if (!dbProfile) return interaction.editReply({ content: "Please make a profile using `/farmer` before trying to buy anything from the market." });
+    
+    // Cache the plain object
+    userProfile = (dbProfile as any).toObject();
+    userProfileCache.set(userId, userProfile);
+  }
 
   let storageCount = 0;
   userProfile.storage.market_items.forEach((v:any) => storageCount += v.amount);
@@ -21,15 +33,37 @@ export async function execute(interaction: CommandInteraction) {
 
   if (storageLeft <= 0) return interaction.editReply({ content: "storage limit exceeded." });
 
-  const harvestedPlants = await database.harvestReadyPlants(userProfile, storageLeft);
-  const harvestedAnimals = await database.gatherReadyProducts(userProfile, storageLeft - harvestedPlants.length);
-  
-  const harvestedString = stringifyProductsList([...harvestedPlants, ...harvestedAnimals]);
+  // Hydrate the cached profile into a Mongoose document
+  const dbProfile = schema.hydrate(userProfile);
+  if (!dbProfile) {
+    userProfileCache.del(userId);
+    return interaction.editReply({ content: "An error occurred while processing your request." });
+  }
 
-  await interaction.editReply({ content: harvestedString === "" ? "Nothing to harvest." : `Successfully harvested ${harvestedString}` });
+  try {
+    const harvestedPlants = await database.harvestReadyPlants(dbProfile, storageLeft);
+    const harvestedAnimals = await database.gatherReadyProducts(dbProfile, storageLeft - harvestedPlants.length);
+    
+    const harvestedString = stringifyProductsList([...harvestedPlants, ...harvestedAnimals]);
 
-  const canLevelUp = await database.checkEligibleForlevelUp(userProfile);
-  if(canLevelUp) interaction.followUp({ content: `✨ Congrats! you are now level **${userProfile.level}**` });
+    // Update cache with latest data
+    const updatedProfile = (dbProfile as any).toObject();
+    userProfileCache.set(userId, updatedProfile);
+
+    await interaction.editReply({ content: harvestedString === "" ? "Nothing to harvest." : `Successfully harvested ${harvestedString}` });
+
+    const canLevelUp = await database.checkEligibleForlevelUp(dbProfile);
+    if(canLevelUp) {
+      // Update cache again after level up
+      const leveledUpProfile = (dbProfile as any).toObject();
+      userProfileCache.set(userId, leveledUpProfile);
+      interaction.followUp({ content: `✨ Congrats! you are now level **${leveledUpProfile.level}**` });
+    }
+  } catch (error) {
+    console.error('Error during harvest:', error);
+    userProfileCache.del(userId);
+    return interaction.editReply({ content: "An error occurred while processing your request." });
+  }
 }
 
 function stringifyProductsList(products: any): string {

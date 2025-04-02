@@ -1,5 +1,6 @@
 import { CommandInteraction, SlashCommandBuilder, EmbedBuilder, MessageFlags } from "discord.js";
 import database from "../database/methods.ts";
+import { userProfileCache } from "../index.ts";
 
 export const data = new SlashCommandBuilder()
     .setName("farm")
@@ -17,8 +18,18 @@ export async function execute(interaction: CommandInteraction) {
     if (user.bot) return interaction.reply({ content: "you can't interact with bots!", flags: MessageFlags.Ephemeral });
     await interaction.deferReply();
 
-    let userProfile: any = await database.findUser(user.id);
-    if (!userProfile) return interaction.editReply({ content: `${user.username}'s farm wasn't found.` });
+    // Check cache first
+    let userProfile: any = userProfileCache.get(user.id);
+    
+    // If not in cache, get from database and cache it
+    if (!userProfile) {
+        const dbProfile = await database.findUser(user.id);
+        if (!dbProfile) return interaction.editReply({ content: `${user.username}'s farm wasn't found.` });
+        
+        // Cache the plain object
+        userProfile = (dbProfile as any).toObject();
+        userProfileCache.set(user.id, userProfile);
+    }
 
     const farmerEmbed = new EmbedBuilder()
         .setTitle(`🌾 ${user.username}'s Farm`)

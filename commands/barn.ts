@@ -1,5 +1,6 @@
 import { CommandInteraction, SlashCommandBuilder, MessageFlags, EmbedBuilder } from "discord.js";
 import database from "../database/methods.ts";
+import { userProfileCache } from "../index.ts";
 
 export const data = new SlashCommandBuilder()
     .setName("barn")
@@ -17,8 +18,20 @@ export async function execute(interaction: CommandInteraction) {
     
     await interaction.deferReply();
     
-    let userProfile: any = await database.findUser(user.id);
-    if (!userProfile) return interaction.editReply({ content: "user's barn wasn't found." });
+    // Check cache first
+
+    let userProfile: any = userProfileCache.get(user.id);
+    
+    // If not in cache, get from database and cache it
+    if (!userProfile) {
+        userProfile = await database.findUser(user.id);
+        if (!userProfile) return interaction.editReply({ content: "user's barn wasn't found." });
+        
+        // Convert Mongoose document to plain object before caching
+        const plainProfile = userProfile.toObject();
+        userProfileCache.set(user.id, plainProfile);
+        userProfile = plainProfile;
+    }
 
     let storageCount = 0;
     userProfile.storage.market_items.forEach((v:any) => storageCount += v.amount);

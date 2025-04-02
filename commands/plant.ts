@@ -1,6 +1,8 @@
 import { CommandInteraction, SlashCommandBuilder, MessageFlags } from "discord.js";
 import marketItems from "../config/items/market_items.json";
 import database from "../database/methods.ts";
+import { userProfileCache } from "../index.ts";
+import schema from "../database/schema.ts";
 
 let choices: Array<ChoicesArray> = [];
 marketItems.map(option => {
@@ -37,8 +39,18 @@ export async function execute(interaction: CommandInteraction) {
 
   const userId = interaction.user.id;
 
-  const userProfile: any = await database.findUser(userId);
-  if (!userProfile) return interaction.editReply({ content: "Please make a profile using `/farmer` before trying to buy anything from the market." });
+  // Check cache first
+  let userProfile: any = userProfileCache.get(userId);
+  
+  // If not in cache, get from database and cache it
+  if (!userProfile) {
+    const dbProfile = await database.findUser(userId);
+    if (!dbProfile) return interaction.editReply({ content: "Please make a profile using `/farmer` before trying to buy anything from the market." });
+    
+    // Cache the plain object
+    userProfile = (dbProfile as any).toObject();
+    userProfileCache.set(userId, userProfile);
+  }
 
   if (!userProfile.storage.market_items.find((v: Record<string, string | number>) => v?.name === item && v?.amount >= quantity)
   ) return interaction.editReply({ content: `you can't plant ${item}.` });
@@ -51,14 +63,31 @@ export async function execute(interaction: CommandInteraction) {
 
   const findItemInDatabase = marketItems.find(v => v.name === item)!;
 
-  await database.removeItemFromstorage(userProfile, item, quantity, "market_items");
-  for (let i = 0; i < quantity; i++) {
-    await database.plantSeed(userProfile, item, findItemInDatabase?.ready_time, findItemInDatabase.gives);
+  // Hydrate the cached profile into a Mongoose document
+  const dbProfile = schema.hydrate(userProfile);
+  if (!dbProfile) {
+    userProfileCache.del(userId);
+    return interaction.editReply({ content: "An error occurred while processing your request." });
   }
-  
-  await database.saveNestedObject(userProfile, "farm");
 
-  return interaction.editReply({ content: `Successfully planted **${quantity}** of **${findItemInDatabase.name}**. it will be ready in **${findItemInDatabase.ready_time / 1000}s**` });
+  try {
+    await database.removeItemFromstorage(dbProfile, item, quantity, "market_items");
+    for (let i = 0; i < quantity; i++) {
+      await database.plantSeed(dbProfile, item, findItemInDatabase?.ready_time, findItemInDatabase.gives);
+    }
+    
+    await database.saveNestedObject(dbProfile, "farm");
+
+    // Update cache with latest data
+    const updatedProfile = (dbProfile as any).toObject();
+    userProfileCache.set(userId, updatedProfile);
+
+    return interaction.editReply({ content: `Successfully planted **${quantity}** of **${findItemInDatabase.name}**. it will be ready in **${findItemInDatabase.ready_time / 1000}s**` });
+  } catch (error) {
+    console.error('Error during planting:', error);
+    userProfileCache.del(userId);
+    return interaction.editReply({ content: "An error occurred while processing your request." });
+  }
 }
 
 type ChoicesArray = {

@@ -1,5 +1,7 @@
 import { CommandInteraction, SlashCommandBuilder, EmbedBuilder, MessageFlags } from "discord.js";
 import database from '../database/methods.ts';
+import { userProfileCache } from "../index.ts";
+import schema from "../database/schema.ts";
 
 export const data = new SlashCommandBuilder()
   .setName("farmer")
@@ -20,19 +22,46 @@ export async function execute(interaction: CommandInteraction) {
   await interaction.deferReply();
 
   if (mentionedUserId) {
-    user = await database.findUser(mentionedUserId.id);
-    if (!user) return interaction.editReply({ content: `${mentionedUserId.username}'s farm wasn't found.` });
+    // Check cache first for mentioned user
+    let userProfile: any = userProfileCache.get(mentionedUserId.id);
+    
+    // If not in cache, get from database and cache it
+    if (!userProfile) {
+      const dbProfile = await database.findUser(mentionedUserId.id);
+      if (!dbProfile) return interaction.editReply({ content: `${mentionedUserId.username}'s farm wasn't found.` });
+      
+      // Cache the plain object
+      userProfile = (dbProfile as any).toObject();
+      userProfileCache.set(mentionedUserId.id, userProfile);
+    }
+    user = userProfile;
   } else {
     const userId = interaction.user?.id;
     const username = interaction.user?.username;
 
     if (userId) {
-      user = await database.findUser(userId);
-      if (!user) {
-        const newUser = await database.createUser(userId, username);
-        if (newUser) return interaction.editReply({ content: `Hey there **${interaction.user.username}**! looks like its your first time playing Earth bot. i'll setup everything you'll need through your adventure. Enjoy!` });
-        else return interaction.editReply({ content: "an error occurred" });
+      // Check cache first
+      let userProfile: any = userProfileCache.get(userId);
+      
+      // If not in cache, get from database and cache it
+      if (!userProfile) {
+        const dbProfile = await database.findUser(userId);
+        if (!dbProfile) {
+          const newUser = await database.createUser(userId, username);
+          if (newUser) {
+            // Cache the new user
+            userProfile = (newUser as any).toObject();
+            userProfileCache.set(userId, userProfile);
+            return interaction.editReply({ content: `Hey there **${interaction.user.username}**! looks like its your first time playing Earth bot. i'll setup everything you'll need through your adventure. Enjoy!` });
+          }
+          return interaction.editReply({ content: "an error occurred" });
+        }
+        
+        // Cache the plain object
+        userProfile = (dbProfile as any).toObject();
+        userProfileCache.set(userId, userProfile);
       }
+      user = userProfile;
     }
   }
 

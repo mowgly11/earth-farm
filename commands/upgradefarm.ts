@@ -1,6 +1,8 @@
 import { CommandInteraction, SlashCommandBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, ActionRowBuilder, ComponentType } from "discord.js";
 import database from "../database/methods.ts";
 import farmLevels from "../config/upgrades/farms.json";
+import { userProfileCache } from "../index.ts";
+import schema from "../database/schema.ts";
 
 export const data = new SlashCommandBuilder()
     .setName("upgradefarm")
@@ -9,8 +11,18 @@ export const data = new SlashCommandBuilder()
 export async function execute(interaction: CommandInteraction) {
     const userId = interaction.user.id;
 
-    const userProfile: any = await database.findUser(userId);
-    if (!userProfile) return interaction.editReply({ content: "Please make a profile using `/farmer` before trying to buy anything from the market." });
+    // Check cache first
+    let userProfile: any = userProfileCache.get(userId);
+    
+    // If not in cache, get from database and cache it
+    if (!userProfile) {
+        const dbProfile = await database.findUser(userId);
+        if (!dbProfile) return interaction.editReply({ content: "Please make a profile using `/farmer` before trying to buy anything from the market." });
+        
+        // Cache the plain object
+        userProfile = (dbProfile as any).toObject();
+        userProfileCache.set(userId, userProfile);
+    }
 
     const nextLevelData = farmLevels.find(v => v.level === userProfile.farm.level + 1);
     if (!nextLevelData) return interaction.reply({ content: "you are at the max level." });
@@ -38,19 +50,36 @@ export async function execute(interaction: CommandInteraction) {
     collector?.on("collect", async (col) => {
         await col.deferUpdate();
 
-        switch (col.customId) {
-            case "confirm":
-                await database.makePayment(userProfile, -nextLevelData.price);
-                await database.upgradeFarm(userProfile, nextLevelData);
-                confirmationEmbed.setDescription("✨ Yeehaaa!, your farm is now at level " + nextLevelData.level)
-                break;
-            case "cancel":
-                confirmationEmbed.setDescription("Upgrade cancelled.").setColor("Red")
-                break;
+        try {
+            // Hydrate the cached profile into a Mongoose document
+            const dbProfile = schema.hydrate(userProfile);
+            if (!dbProfile) {
+                userProfileCache.del(userId);
+                return col.reply({ content: "An error occurred while processing your request.", ephemeral: true });
+            }
+
+            switch (col.customId) {
+                case "confirm":
+                    await database.makePayment(dbProfile, -nextLevelData.price);
+                    await database.upgradeFarm(dbProfile, nextLevelData);
+                    
+                    // Update cache with latest data
+                    const updatedProfile = (dbProfile as any).toObject();
+                    userProfileCache.set(userId, updatedProfile);
+                    
+                    confirmationEmbed.setDescription("✨ Yeehaaa!, your farm is now at level " + nextLevelData.level)
+                    break;
+                case "cancel":
+                    confirmationEmbed.setDescription("Upgrade cancelled.").setColor("Red")
+                    break;
+            }
+        } catch (error) {
+            console.error('Error during farm upgrade:', error);
+            userProfileCache.del(userId);
+            confirmationEmbed.setDescription("An error occurred during the upgrade.").setColor("Red")
         }
 
         row.components.forEach(component => component.data.disabled = true);
-
         await interaction.editReply({ embeds: [confirmationEmbed], components: [row] });
     });
 

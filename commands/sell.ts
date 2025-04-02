@@ -3,6 +3,8 @@ import marketItems from "../config/items/market_items.json";
 import products from "../config/items/products.json";
 import database from "../database/methods.ts";
 import { logTransaction } from "../utils/transaction_logger.ts";
+import { userProfileCache } from "../index.ts";
+import schema from "../database/schema.ts";
 
 // Prepare choices for both items and products
 let itemChoices: Array<ChoicesArray> = marketItems.map(option => ({
@@ -67,68 +69,99 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const quantity = parseInt(String(interaction.options.get("quantity")?.value));
     const userId = interaction.user.id;
 
-    const userProfile: any = await database.findUser(userId);
+    // Check cache first
+    let userProfile: any = userProfileCache.get(userId);
+    
+    // If not in cache, get from database and cache it
     if (!userProfile) {
-        return interaction.editReply({ content: "Please make a profile using `/farmer` before trying to sell anything from the market." });
+        const dbProfile = await database.findUser(userId);
+        if (!dbProfile) {
+            return interaction.editReply({ content: "Please make a profile using `/farmer` before trying to sell anything from the market." });
+        }
+        
+        // Cache the plain object
+        userProfile = (dbProfile as any).toObject();
+        userProfileCache.set(userId, userProfile);
     }
 
-    if (subcommand === "item") {
-        // Handle market item selling
-        if (!userProfile.storage.market_items.find((v: Record<string, string | number>) => v?.name === name && Number(v?.amount) >= quantity)) {
-            return interaction.editReply({ content: `You can't sell ${name}. You either don't own it or don't own ${quantity} of it.` });
+    // Hydrate the cached profile into a Mongoose document
+    const dbProfile = schema.hydrate(userProfile);
+    if (!dbProfile) {
+        userProfileCache.del(userId);
+        return interaction.editReply({ content: "An error occurred while processing your request." });
+    }
+
+    try {
+        if (subcommand === "item") {
+            // Handle market item selling
+            if (!userProfile.storage.market_items.find((v: Record<string, string | number>) => v?.name === name && Number(v?.amount) >= quantity)) {
+                return interaction.editReply({ content: `You can't sell ${name}. You either don't own it or don't own ${quantity} of it.` });
+            }
+
+            const findItemInDatabase = marketItems.find(v => v.name === name)!;
+            const sellingPrice = Number(findItemInDatabase?.sell_price!) * quantity;
+
+            const goldBefore = dbProfile.gold;
+            await database.removeItemFromstorage(dbProfile, name, quantity, "market_items");
+            await database.makePayment(dbProfile, sellingPrice);
+            const goldAfter = dbProfile.gold;
+
+            // Update cache with latest data
+            const updatedProfile = (dbProfile as any).toObject();
+            userProfileCache.set(userId, updatedProfile);
+
+            // Log the transaction
+            logTransaction(interaction.client, {
+                type: "sell",
+                initiator: interaction.user.id,
+                initiatorUsername: interaction.user.username,
+                item: name,
+                quantity: quantity,
+                price: sellingPrice,
+                isProduct: false,
+                initiatorGoldBefore: Number(goldBefore),
+                initiatorGoldAfter: Number(goldAfter)
+            });
+
+            return interaction.editReply({ content: `Successfully sold ${quantity} of ${name} for a total price of ${sellingPrice} 🪙` });
+
+        } else if (subcommand === "product") {
+            // Handle product selling
+            if (!userProfile.storage.products.find((v: Record<string, string | number>) => v?.name === name && Number(v?.amount) >= quantity)) {
+                return interaction.editReply({ content: `You can't sell ${name}. You either don't own it or don't own ${quantity} of it.` });
+            }
+
+            const findItemInDatabase = products.find(v => v.name === name)!;
+            const sellingPrice = Number(findItemInDatabase?.sell_price!) * quantity;
+
+            const goldBefore = dbProfile.gold;
+            await database.removeItemFromstorage(dbProfile, name, quantity, "products");
+            await database.makePayment(dbProfile, sellingPrice);
+            const goldAfter = dbProfile.gold;
+
+            const updatedProfile = (dbProfile as any).toObject();
+            userProfileCache.set(userId, updatedProfile);
+            // Update cache with latest data
+
+            // Log the transaction
+            logTransaction(interaction.client, {
+                type: "sell",
+                initiator: interaction.user.id,
+                initiatorUsername: interaction.user.username,
+                item: name,
+                quantity: quantity,
+                price: sellingPrice,
+                isProduct: true,
+                initiatorGoldBefore: Number(goldBefore),
+                initiatorGoldAfter: Number(goldAfter)
+            });
+
+            return interaction.editReply({ content: `Successfully sold ${quantity} of ${name} for a total price of ${sellingPrice} 🪙` });
         }
-
-        const findItemInDatabase = marketItems.find(v => v.name === name)!;
-        const sellingPrice = Number(findItemInDatabase?.sell_price!) * quantity;
-
-        const goldBefore = userProfile.gold;
-        await database.removeItemFromstorage(userProfile, name, quantity, "market_items");
-        await database.makePayment(userProfile, sellingPrice);
-        const goldAfter = userProfile.gold;
-
-        // Log the transaction
-        await logTransaction(interaction.client, {
-            type: "sell",
-            initiator: interaction.user.id,
-            initiatorUsername: interaction.user.username,
-            item: name,
-            quantity: quantity,
-            price: sellingPrice,
-            isProduct: false,
-            initiatorGoldBefore: goldBefore,
-            initiatorGoldAfter: goldAfter
-        });
-
-        return interaction.editReply({ content: `Successfully sold ${quantity} of ${name} for a total price of ${sellingPrice} 🪙` });
-
-    } else if (subcommand === "product") {
-        // Handle product selling
-        if (!userProfile.storage.products.find((v: Record<string, string | number>) => v?.name === name && Number(v?.amount) >= quantity)) {
-            return interaction.editReply({ content: `You can't sell ${name}. You either don't own it or don't own ${quantity} of it.` });
-        }
-
-        const findItemInDatabase = products.find(v => v.name === name)!;
-        const sellingPrice = Number(findItemInDatabase?.sell_price!) * quantity;
-
-        const goldBefore = userProfile.gold;
-        await database.removeItemFromstorage(userProfile, name, quantity, "products");
-        await database.makePayment(userProfile, sellingPrice);
-        const goldAfter = userProfile.gold;
-
-        // Log the transaction
-        await logTransaction(interaction.client, {
-            type: "sell",
-            initiator: interaction.user.id,
-            initiatorUsername: interaction.user.username,
-            item: name,
-            quantity: quantity,
-            price: sellingPrice,
-            isProduct: true,
-            initiatorGoldBefore: goldBefore,
-            initiatorGoldAfter: goldAfter
-        });
-
-        return interaction.editReply({ content: `Successfully sold ${quantity} of ${name} for a total price of ${sellingPrice} 🪙` });
+    } catch (error) {
+        console.error('Error during selling:', error);
+        userProfileCache.del(userId);
+        return interaction.editReply({ content: "An error occurred while processing your request." });
     }
 }
 

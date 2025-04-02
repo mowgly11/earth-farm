@@ -5,6 +5,8 @@ import products from "../config/items/products.json";
 import market from "../config/data/market.json";
 import type { User } from "../types/database_types";
 import { logTransaction } from "../utils/transaction_logger.ts";
+import { userProfileCache } from "../index.ts";
+import schema from "../database/schema.ts";
 
 type MarketCategory = 'seeds' | 'animals' | 'crops' | 'animal_products' | 'upgrades';
 
@@ -90,30 +92,42 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         return interaction.editReply({ content: "You cannot trade with bots!" });
     }
 
-    const initiatorProfile = (await database.findUser(interaction.user.id) as unknown) as User;
-    const targetProfile = (await database.findUser(targetUser.id) as unknown) as User;
+    // Check cache for both users
+    let initiatorProfile: any = userProfileCache.get(interaction.user.id);
+    let targetProfile: any = userProfileCache.get(targetUser.id);
+    
+    // If not in cache, get from database and cache it
+    if (!initiatorProfile) {
+        const dbProfile = await database.findUser(interaction.user.id);
+        if (!dbProfile) return interaction.editReply({ content: "Both players must have profiles to trade. Use `/farmer` to create one." });
+        initiatorProfile = (dbProfile as any).toObject();
+        userProfileCache.set(interaction.user.id, initiatorProfile);
+    }
 
-    if (!initiatorProfile || !targetProfile) {
-        return interaction.editReply({ content: "Both players must have profiles to trade. Use `/farmer` to create one." });
+    if (!targetProfile) {
+        const dbProfile = await database.findUser(targetUser.id);
+        if (!dbProfile) return interaction.editReply({ content: "Both players must have profiles to trade. Use `/farmer` to create one." });
+        targetProfile = (dbProfile as any).toObject();
+        userProfileCache.set(targetUser.id, targetProfile);
     }
 
     // Check if initiator has enough of the offered item
-    const initiatorItem = initiatorProfile.storage[offerType as keyof typeof initiatorProfile.storage].find((v) => v.name === offerItem);
+    const initiatorItem = initiatorProfile.storage[offerType as keyof typeof initiatorProfile.storage].find((v: { name: string; amount: number }) => v.name === offerItem);
     if (!initiatorItem || initiatorItem.amount < offerQuantity) {
         return interaction.editReply({ content: `You don't have enough ${offerItem} to make this trade!` });
     }
 
     // Check if target has enough of the requested item
-    const targetItem = targetProfile.storage[requestType as keyof typeof targetProfile.storage].find((v) => v.name === requestItem);
+    const targetItem = targetProfile.storage[requestType as keyof typeof targetProfile.storage].find((v: { name: string; amount: number }) => v.name === requestItem);
     if (!targetItem || targetItem.amount < requestQuantity) {
         return interaction.editReply({ content: `${targetUser?.username} doesn't have enough ${requestItem} for this trade!` });
     }
 
     // Calculate current storage usage
-    const initiatorCurrentStorage = Object.values(initiatorProfile.storage).reduce((total, items) =>
-        total + items.reduce((sum, item) => sum + item.amount, 0), 0);
-    const targetCurrentStorage = Object.values(targetProfile.storage).reduce((total, items) =>
-        total + items.reduce((sum, item) => sum + item.amount, 0), 0);
+    const initiatorCurrentStorage = Object.values(initiatorProfile.storage).reduce<number>((total, items) =>
+        total + (items as any[]).reduce((sum, item) => sum + item.amount, 0), 0);
+    const targetCurrentStorage = Object.values(targetProfile.storage).reduce<number>((total, items) =>
+        total + (items as any[]).reduce((sum, item) => sum + item.amount, 0), 0);
 
     // Check if initiator has space for requested items
     if (initiatorCurrentStorage + requestQuantity > initiatorProfile.farm.storage_limit) {
@@ -185,37 +199,62 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     collector.on("collect", async (i) => {
         if (i.customId === "accept") {
-            // Execute the trade
-            const initiatorGoldBefore = (initiatorProfile as any).gold;
-            const targetGoldBefore = (targetProfile as any).gold;
+            try {
+                // Hydrate both profiles into Mongoose documents
+                const initiatorDbProfile = schema.hydrate(initiatorProfile);
+                const targetDbProfile = schema.hydrate(targetProfile);
+                
+                if (!initiatorDbProfile || !targetDbProfile) {
+                    userProfileCache.del(interaction.user.id);
+                    userProfileCache.del(targetUser.id);
+                    return i.reply({ content: "An error occurred while processing the trade.", ephemeral: true });
+                }
 
-            await database.removeItemFromstorage(initiatorProfile, offerItem, offerQuantity, offerType as "market_items" | "products");
-            await database.removeItemFromstorage(targetProfile, requestItem, requestQuantity, requestType as "market_items" | "products");
-            await database.addItemTostorage(initiatorProfile, requestItem, requestQuantity, requestType as "market_items" | "products");
-            await database.addItemTostorage(targetProfile, offerItem, offerQuantity, offerType as "market_items" | "products");
+                const initiatorGoldBefore = (initiatorProfile as any).gold;
+                const targetGoldBefore = (targetProfile as any).gold;
 
-            const initiatorGoldAfter = (initiatorProfile as any).gold;
-            const targetGoldAfter = (targetProfile as any).gold;
+                await database.removeItemFromstorage(initiatorDbProfile, offerItem, offerQuantity, offerType as "market_items" | "products");
+                await database.removeItemFromstorage(targetDbProfile, requestItem, requestQuantity, requestType as "market_items" | "products");
+                await database.addItemTostorage(initiatorDbProfile, requestItem, requestQuantity, requestType as "market_items" | "products");
+                await database.addItemTostorage(targetDbProfile, offerItem, offerQuantity, offerType as "market_items" | "products");
 
-            // Log the transaction
-            await logTransaction(i.client, {
-                type: "trade",
-                initiator: interaction.user.id,
-                initiatorUsername: interaction.user.username,
-                target: targetUser.id,
-                targetUsername: targetUser.username,
-                item: `${offerQuantity}x ${offerItem} for ${requestQuantity}x ${requestItem}`,
-                quantity: 1,
-                isProduct: offerType === "products" || requestType === "products",
-                initiatorGoldBefore: initiatorGoldBefore,
-                initiatorGoldAfter: initiatorGoldAfter,
-                targetGoldBefore: targetGoldBefore,
-                targetGoldAfter: targetGoldAfter
-            });
+                // Update cache for both users
+                const updatedInitiatorProfile = (initiatorDbProfile as any).toObject();
+                const updatedTargetProfile = (targetDbProfile as any).toObject();
+                
+                userProfileCache.set(interaction.user.id, updatedInitiatorProfile);
+                userProfileCache.set(targetUser.id, updatedTargetProfile);
 
-            tradeEmbed.setColor("Green")
-                .setDescription("✅ Trade completed successfully!")
-                .setFooter(null);
+                const initiatorGoldAfter = (updatedInitiatorProfile as any).gold;
+                const targetGoldAfter = (updatedTargetProfile as any).gold;
+
+                // Log the transaction
+                await logTransaction(i.client, {
+                    type: "trade",
+                    initiator: interaction.user.id,
+                    initiatorUsername: interaction.user.username,
+                    target: targetUser.id,
+                    targetUsername: targetUser.username,
+                    item: `${offerQuantity}x ${offerItem} for ${requestQuantity}x ${requestItem}`,
+                    quantity: 1,
+                    isProduct: offerType === "products" || requestType === "products",
+                    initiatorGoldBefore: initiatorGoldBefore,
+                    initiatorGoldAfter: initiatorGoldAfter,
+                    targetGoldBefore: targetGoldBefore,
+                    targetGoldAfter: targetGoldAfter
+                });
+
+                tradeEmbed.setColor("Green")
+                    .setDescription("✅ Trade completed successfully!")
+                    .setFooter(null);
+            } catch (error) {
+                console.error('Error during trade:', error);
+                userProfileCache.del(interaction.user.id);
+                userProfileCache.del(targetUser.id);
+                tradeEmbed.setColor("Red")
+                    .setDescription("❌ An error occurred during the trade!")
+                    .setFooter(null);
+            }
         } else {
             tradeEmbed.setColor("Red")
                 .setDescription("❌ Trade offer denied!")

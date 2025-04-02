@@ -2,6 +2,8 @@ import { CommandInteraction, SlashCommandBuilder } from "discord.js";
 import marketItems from "../config/items/market_items.json";
 import database from "../database/methods.ts";
 import { logTransaction } from "../utils/transaction_logger.ts";
+import { userProfileCache } from "../index.ts";
+import schema from "../database/schema.ts";
 
 let choices: Array<ChoicesArray> = [];
 marketItems.map(option => {
@@ -31,15 +33,25 @@ export const data = new SlashCommandBuilder()
     )
 
 export async function execute(interaction: CommandInteraction) {
+    console.time("buy");
     await interaction.deferReply();
 
     const item: string = String(interaction.options.get("item")?.value)?.trim();
     let quantity: number = interaction.options.get("quantity")?.value as number;
-
     const userId = interaction.user.id;
 
-    const userProfile: any = await database.findUser(userId);
-    if (!userProfile) return interaction.editReply({ content: "Please make a profile using `/farmer` before trying to buy anything from the market." });
+    // Check cache first
+    let userProfile: any = userProfileCache.get(userId);
+    
+    // If not in cache, get from database and cache it
+    if (!userProfile) {
+        const dbProfile = await database.findUser(userId);
+        if (!dbProfile) return interaction.editReply({ content: "Please make a profile using `/farmer` before trying to buy anything from the market." });
+        
+        // Cache the plain object
+        userProfile = (dbProfile as any).toObject();
+        userProfileCache.set(userId, userProfile);
+    }
 
     const findItemInDatabase = marketItems.find(v => v.name === item)!;
     
@@ -51,29 +63,48 @@ export async function execute(interaction: CommandInteraction) {
     if (buyingPrice > userProfile?.gold) return interaction.editReply({ content: "you don't have enough gold to buy this item" });
     
     let storageCount = 0;
-    
     userProfile.storage.market_items.forEach((v:any) => storageCount += v?.amount ?? 0);
     userProfile.storage.products.forEach((v:any) => storageCount += v?.amount ?? 0);
 
     if (userProfile.farm.storage_limit - storageCount <= 0 || quantity > userProfile.farm.storage_limit - storageCount) return interaction.editReply({ content: "storage limit exceeded." });
     
-    const goldBefore = (userProfile as any).gold;
-    await database.addItemTostorage(userProfile, String(findItemInDatabase?.name), quantity, findItemInDatabase?.type);
-    await database.makePayment(userProfile, -buyingPrice);
-    const goldAfter = (userProfile as any).gold;
+    const goldBefore = userProfile.gold;
 
-    // Log the transaction
-    await logTransaction(interaction.client, {
-        type: "buy",
-        initiator: interaction.user.id,
-        initiatorUsername: interaction.user.username,
-        item: item,
-        quantity: quantity,
-        price: buyingPrice,
-        isProduct: false,
-        initiatorGoldBefore: goldBefore,
-        initiatorGoldAfter: goldAfter
-    });
+    // Hydrate the cached profile into a Mongoose document
+    const dbProfile = schema.hydrate(userProfile);
+    if (!dbProfile) {
+        userProfileCache.del(userId);
+        return interaction.editReply({ content: "An error occurred while processing your request." });
+    }
+
+    try {
+        // First update storage
+        await database.addItemTostorage(dbProfile, String(findItemInDatabase?.name), quantity, findItemInDatabase?.type);
+        // Then update gold
+        await database.makePayment(dbProfile, -buyingPrice);
+        
+        // Update cache with the latest data from the database document
+        const updatedProfile = (dbProfile as any).toObject();
+        userProfileCache.set(userId, updatedProfile);
+        
+        // Log the transaction with the correct gold values from the updated profile
+        logTransaction(interaction.client, {
+            type: "buy",
+            initiator: interaction.user.id,
+            initiatorUsername: interaction.user.username,
+            item: item,
+            quantity: quantity,
+            price: buyingPrice,
+            isProduct: false,
+            initiatorGoldBefore: goldBefore,
+            initiatorGoldAfter: updatedProfile.gold
+        });
+    } catch (error) {
+        console.error('Error updating database:', error);
+        // Invalidate cache on error
+        userProfileCache.del(userId);
+        return interaction.editReply({ content: "An error occurred while processing your request." });
+    }
 
     return interaction.editReply({ content: `Successfully bought ${quantity} of ${item} for a total price of ${buyingPrice}.` });
 }
