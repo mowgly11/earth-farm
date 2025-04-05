@@ -4,6 +4,7 @@ import database from "../database/methods.ts";
 import { logTransaction } from "../utils/transaction_logger.ts";
 import { userProfileCache } from "../index.ts";
 import schema from "../database/schema.ts";
+import { logError } from "../utils/error_logger.ts";
 
 let choices: Array<ChoicesArray> = [];
 marketItems.map(option => {
@@ -100,7 +101,10 @@ export async function execute(interaction: CommandInteraction) {
             initiatorGoldAfter: updatedProfile.gold
         });
     } catch (error) {
-        console.error('Error updating database:', error);
+        logError(interaction.client, {
+            path: 'buy.ts',
+            error,
+        });
         // Invalidate cache on error
         userProfileCache.del(userId);
         return interaction.editReply({ content: "An error occurred while processing your request." });

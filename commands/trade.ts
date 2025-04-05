@@ -7,6 +7,7 @@ import type { User } from "../types/database_types";
 import { logTransaction } from "../utils/transaction_logger.ts";
 import { userProfileCache } from "../index.ts";
 import schema from "../database/schema.ts";
+import { logError } from "../utils/error_logger.ts";
 
 type MarketCategory = 'seeds' | 'animals' | 'crops' | 'animal_products' | 'upgrades';
 
@@ -248,7 +249,10 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                     .setDescription("✅ Trade completed successfully!")
                     .setFooter(null);
             } catch (error) {
-                console.error('Error during trade:', error);
+                logError(interaction.client, {
+                    path: 'trade.ts',
+                    error
+                })
                 userProfileCache.del(interaction.user.id);
                 userProfileCache.del(targetUser.id);
                 tradeEmbed.setColor("Red")

@@ -2,6 +2,7 @@ import { CommandInteraction, SlashCommandBuilder, MessageFlags } from "discord.j
 import database from "../database/methods.ts";
 import { userProfileCache } from "../index.ts";
 import schema from "../database/schema.ts";
+import { logError } from "../utils/error_logger.ts";
 
 export const data = new SlashCommandBuilder()
   .setName("harvest")
@@ -60,7 +61,10 @@ export async function execute(interaction: CommandInteraction) {
       interaction.followUp({ content: `✨ Congrats! you are now level **${leveledUpProfile.level}**` });
     }
   } catch (error) {
-    console.error('Error during harvest:', error);
+    logError(interaction.client, {
+      path: "harvest.ts",
+      error
+    })
     userProfileCache.del(userId);
     return interaction.editReply({ content: "An error occurred while processing your request." });
   }

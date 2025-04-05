@@ -3,6 +3,7 @@ import database from "../database/methods.ts";
 import actions from "../config/data/actions.json";
 import { userProfileCache } from "../index.ts";
 import schema from "../database/schema.ts";
+import { logError } from "../utils/error_logger.ts";
 
 export const data = new SlashCommandBuilder()
     .setName("feed")
@@ -96,7 +97,10 @@ export async function execute(interaction: CommandInteraction) {
         await database.saveNestedObject(dbProfile, "farm");
         await database.saveNestedObject(dbProfile, "actions");
     } catch (error) {
-        console.error('Error updating database:', error);
+        logError(interaction.client, {
+            path: "feed.ts",
+            error
+        })
         userProfileCache.del(userId);
         return interaction.editReply({ content: "An error occurred while processing your request." });
     }

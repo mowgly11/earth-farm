@@ -5,6 +5,7 @@ import database from "../database/methods.ts";
 import { logTransaction } from "../utils/transaction_logger.ts";
 import { userProfileCache } from "../index.ts";
 import schema from "../database/schema.ts";
+import { logError } from "../utils/error_logger.ts";
 
 // Prepare choices for both items and products
 let itemChoices: Array<ChoicesArray> = marketItems.map(option => ({
@@ -159,7 +160,10 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             return interaction.editReply({ content: `Successfully sold ${quantity} of ${name} for a total price of ${sellingPrice} 🪙` });
         }
     } catch (error) {
-        console.error('Error during selling:', error);
+        logError(interaction.client, {
+            path: "sell.ts",
+            error
+        })
         userProfileCache.del(userId);
         return interaction.editReply({ content: "An error occurred while processing your request." });
     }

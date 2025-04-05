@@ -3,6 +3,7 @@ import marketItems from "../config/items/market_items.json";
 import database from "../database/methods.ts";
 import { userProfileCache } from "../index.ts";
 import schema from "../database/schema.ts";
+import { logError } from "../utils/error_logger.ts";
 
 let choices: Array<ChoicesArray> = [];
 marketItems.map(option => {
@@ -84,7 +85,10 @@ export async function execute(interaction: CommandInteraction) {
 
     return interaction.editReply({ content: `Successfully planted **${quantity}** of **${findItemInDatabase.name}**. it will be ready in **${findItemInDatabase.ready_time / 1000}s**` });
   } catch (error) {
-    console.error('Error during planting:', error);
+    logError(interaction.client, {
+      path: "plant.ts",
+      error
+    })
     userProfileCache.del(userId);
     return interaction.editReply({ content: "An error occurred while processing your request." });
   }

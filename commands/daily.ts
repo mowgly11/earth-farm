@@ -2,6 +2,7 @@ import { CommandInteraction, SlashCommandBuilder, MessageFlags } from "discord.j
 import database from "../database/methods.js";
 import { userProfileCache } from "../index.ts";
 import schema from "../database/schema.ts";
+import { logError } from "../utils/error_logger.ts";
 
 export const data = new SlashCommandBuilder()
     .setName("daily")
@@ -49,7 +50,10 @@ export async function execute(interaction: CommandInteraction) {
     try {
         await dbProfile.save();
     } catch (error) {
-        console.error('Error updating database:', error);
+        logError(interaction.client, {
+            path: 'daily.ts',
+            error
+        })
         userProfileCache.del(user.id);
         return interaction.editReply({ content: "An error occurred while processing your request." });
     }

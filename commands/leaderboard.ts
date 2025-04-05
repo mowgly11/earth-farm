@@ -1,6 +1,7 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from "discord.js";
 import database from "../database/methods.ts";
 import { Document } from "mongoose";
+import { logError } from "../utils/error_logger.ts";
 
 interface UserProfile extends Document {
     userId: string;
@@ -82,7 +83,10 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         return interaction.editReply({ embeds: [embed] });
 
     } catch (error) {
-        console.error("Error fetching leaderboard:", error);
+        logError(interaction.client, {
+            path: "leaderboard.ts",
+            error
+        })
         return interaction.editReply({ content: "Failed to fetch leaderboard data. Please try again later." });
     }
 }

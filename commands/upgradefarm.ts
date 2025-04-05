@@ -3,6 +3,7 @@ import database from "../database/methods.ts";
 import farmLevels from "../config/upgrades/farms.json";
 import { userProfileCache } from "../index.ts";
 import schema from "../database/schema.ts";
+import { logError } from "../utils/error_logger.ts";
 
 export const data = new SlashCommandBuilder()
     .setName("upgradefarm")
@@ -74,7 +75,10 @@ export async function execute(interaction: CommandInteraction) {
                     break;
             }
         } catch (error) {
-            console.error('Error during farm upgrade:', error);
+            logError(interaction.client, {
+                path: "upgradefarm.ts",
+                error
+            })
             userProfileCache.del(userId);
             confirmationEmbed.setDescription("An error occurred during the upgrade.").setColor("Red")
         }

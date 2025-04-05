@@ -3,6 +3,7 @@ import marketItems from "../config/items/market_items.json";
 import database from "../database/methods.ts";
 import { userProfileCache } from "../index.ts";
 import schema from "../database/schema.ts";
+import { logError } from "../utils/error_logger.ts";
 
 let choices: Array<ChoicesArray> = [];
 marketItems.map(option => {
@@ -68,7 +69,10 @@ export async function execute(interaction: CommandInteraction) {
 
         return interaction.editReply({ content: `successfully deployed ${animal}, it will produce goods every ${findItemInDatabase.ready_time/1000/60}mins` });
     } catch (error) {
-        console.error('Error during animal deployment:', error);
+        logError(interaction.client, {
+            path: 'raise.ts',
+            error
+        })
         userProfileCache.del(userId);
         return interaction.editReply({ content: "An error occurred while processing your request." });
     }
