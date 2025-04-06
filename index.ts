@@ -1,5 +1,4 @@
 import { ActivityType, Client, Events, GatewayIntentBits, MessageFlags } from 'discord.js';
-import { token, mongo_connection } from './config.json';
 import { deployCommands, flushCommands } from './handlers/command.ts';
 import { commands } from './commands';
 import MongooseInit from "./database/connect.ts";
@@ -9,7 +8,7 @@ const userProfileCache = new NodeCache({ stdTTL: 3600, checkperiod: 120 });
 
 export { userProfileCache };
 
-const databaseConnection = new MongooseInit(mongo_connection);
+const databaseConnection = new MongooseInit(process.env.mongo_connection!);
 databaseConnection.connect();
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages], allowedMentions: { repliedUser: false } });
@@ -40,4 +39,4 @@ client.on("messageCreate", (message) => {
   }
 })
 
-client.login(token);
+client.login(process.env.token!);
