@@ -54,15 +54,6 @@
         "type": "animals"
     },
     {
-        "name": "Test Seeds",
-        "gives": "Test Prod",
-        "level": 1,
-        "buy_price": 1,
-        "sell_price": 1,
-        "ready_time": 0,
-        "type": "seeds"
-    },
-    {
         "name": "Wheat Seeds",
         "gives": "Wheat",
         "level": 1,

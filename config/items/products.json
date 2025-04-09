@@ -41,13 +41,7 @@
         "xp_gain": 5,
         "sell_price": 55
     },
-    {
-        "name": "Test Prod",
-        "from": "Test Seeds",
-        "level": 1,
-        "xp_gain": 5,
-        "sell_price": 120
-    },
+
     {
         "name": "Wheat",
         "from": "Wheat Seeds",
