@@ -14,8 +14,8 @@ databaseConnection.connect();
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages], allowedMentions: { repliedUser: false } });
 
 client.once(Events.ClientReady, async readyClient => {
-  await deployCommands();
-  //await flushCommands();
+  //await deployCommands();
+  await flushCommands();
 
   console.log(`Ready! Logged in as ${readyClient.user.tag}`);
   client.user?.setActivity("Under Maintenance", { type: ActivityType.Playing });
