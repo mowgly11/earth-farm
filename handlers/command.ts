@@ -11,7 +11,7 @@ export async function deployCommands() {
     console.log("Started refreshing application (/) commands.");
 
     await rest.put(
-      Routes.applicationGuildCommands(String(process.env.clientId!), "886987831141101649"),
+      Routes.applicationCommands(String(process.env.clientId!)),
       {
         body: commandsData,
       }
