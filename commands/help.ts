@@ -14,17 +14,17 @@ export async function execute(interaction: CommandInteraction) {
         .addFields(
             {
                 name: "👤 Profile Commands",
-                value: "`/farmer` - Create or view your profile\n`/leaderboard` - View the leaderboard",
+                value: "`/farmer` - Create or view your profile\n`/leaderboard` - View the leaderboard\n`/gold` - Check gold balance\n`/xp` - View experience progress\n`/daily` - Collect daily rewards\n`/barn` - View your storage",
                 inline: false
             },
             {
-                name: "🌱 Farming Commands",
+                name: "🌱 Farming Commands", 
                 value: "`/farm` - View your farm\n`/plant` - Plant seeds\n`/harvest` - Harvest crops\n`/upgradefarm` - Upgrade your farm\n`/buy` - Buy items from the market\n`/sell` - Sell items to the market\n`/trade` - Trade with other players",
                 inline: false
             },
             {
                 name: "🐮 Animal Care Actions",
-                value: "`/feed [slot]` - Boosts production by 5%\n`/pet [slot]` - Boosts production by 1%\n`/clean [slot]` - Boosts production by 3%\n*Boosts last for 2 hours and can stack*",
+                value: "`/feed [slot]` - Boosts production by 5%\n`/pet [slot]` - Boosts production by 1%\n`/clean [slot]` - Boosts production by 3%\n`/raise` - Deploy an animal\n`/unraise` - Remove an animal\n*Boosts last for 2 hours and can stack*",
                 inline: false
             },
             {
