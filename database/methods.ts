@@ -154,6 +154,10 @@ class DatabaseMethods {
         });
     }
 
+    async undeployAnimal(userProfile: any, slot: number): Promise<void> {
+        userProfile.farm.occupied_animal_slots.splice(slot - 1, 1);
+    }
+
     async gatherReadyProducts(userProfile: any, storageLeft: number) {
         const harvestAnimalsLength = userProfile.farm.occupied_animal_slots.length;
         let harvestLoopLength = 0;
