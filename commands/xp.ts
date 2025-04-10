@@ -55,7 +55,6 @@ export async function execute(interaction: CommandInteraction) {
     const canvas = Canvas.createCanvas(400, 100);
     const ctx = canvas.getContext('2d');
 
-    ctx.font = "14px Arial";
     ctx.fillStyle = "white";
 
     ctx.drawImage(baseImage, 0, 0, canvas.width, canvas.height);
