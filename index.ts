@@ -13,7 +13,7 @@ databaseConnection.connect();
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages], allowedMentions: { repliedUser: false } });
 
-client.once(Events.ClientReady, async readyClient => {
+client.on(Events.ClientReady, async readyClient => {
   await deployCommands();
   //await flushCommands();
 
