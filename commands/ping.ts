@@ -19,7 +19,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const dbLatency = Date.now() - dbStart;
 
     // Get bot latency (time between command and response)
-    const botLatency = Date.now() - interaction.createdTimestamp - discordLatency;
+    const botLatency = Date.now() - interaction.createdTimestamp - discordLatency - dbLatency;
 
     const embed = new EmbedBuilder()
         .setTitle("🏓 Pong!")
