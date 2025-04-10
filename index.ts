@@ -18,8 +18,12 @@ client.on(Events.ClientReady, async readyClient => {
   //await flushCommands();
 
   console.log(`Ready! Logged in as ${readyClient.user.tag}`);
-  client.user?.setActivity(`/help`, { type: ActivityType.Watching });
   client.user?.setStatus("idle");
+  let currentStatus = true;
+  setInterval(() => {
+    client.user?.setActivity(currentStatus ? `/help` : `${client.guilds.cache.size} servers`, { type: ActivityType.Watching });
+    currentStatus = !currentStatus;
+  }, 15000);
 });
 
 client.on("interactionCreate", async (interaction) => {
