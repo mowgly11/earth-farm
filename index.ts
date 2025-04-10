@@ -18,7 +18,7 @@ client.once(Events.ClientReady, async readyClient => {
   //await flushCommands();
 
   console.log(`Ready! Logged in as ${readyClient.user.tag}`);
-  client.user?.setActivity("Under Maintenance", { type: ActivityType.Playing });
+  client.user?.setActivity("/help", { type: ActivityType.Watching });
   client.user?.setStatus("idle");
 });
 
