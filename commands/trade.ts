@@ -167,6 +167,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     }
 
     pendingOffers.add(targetUser.id);
+    pendingOffers.add(interaction.user.id);
 
     // Create trade confirmation embed
     const tradeEmbed = new EmbedBuilder()
@@ -278,10 +279,12 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         row.components.forEach(button => button.setDisabled(true));
         await i.update({ embeds: [tradeEmbed], components: [row] });
         pendingOffers.delete(targetUser.id);
+        pendingOffers.delete(interaction.user.id);
     });
 
     collector.on("end", async (collected, reason) => {
         pendingOffers.delete(targetUser.id);
+        pendingOffers.delete(interaction.user.id);
         if (reason === "time" && collected.size === 0) {
             tradeEmbed.setColor("Red")
                 .setDescription("❌ Trade offer expired!")
