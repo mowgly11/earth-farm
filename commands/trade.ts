@@ -17,6 +17,8 @@ const allItems = [
     ...products.slice(0, 13).map(item => ({ name: `${item.name} (Product)`, value: `products:${item.name}` }))
 ];
 
+const pendingOffers = new Set();
+
 export const data = new SlashCommandBuilder()
     .setName("trade")
     .setDescription("Trade items with another player")
@@ -76,13 +78,18 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const requestItemFull = String(interaction.options.get("request_item")?.value);
     const requestQuantity = Number(interaction.options.get("request_quantity")?.value);
 
+    
     // Split the item strings into type and name
     const [offerType, offerItem] = offerItemFull.split(":");
     const [requestType, requestItem] = requestItemFull.split(":");
-
+    
     // Validate users
     if (!targetUser) {
         return interaction.editReply({ content: "Invalid target user!" });
+    }
+
+    if(pendingOffers.has(targetUser.id)) {
+        return interaction.editReply({ content: "This user already has a pending offer, please wait until the offer is done." });
     }
 
     if (targetUser.id === interaction.user.id) {
@@ -158,6 +165,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             content: `${targetUser?.username} needs to be level ${offerItemLevel} to receive ${offerItem}!`
         });
     }
+
+    pendingOffers.add(targetUser.id);
 
     // Create trade confirmation embed
     const tradeEmbed = new EmbedBuilder()
@@ -265,11 +274,14 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 .setFooter(null);
         }
 
+
         row.components.forEach(button => button.setDisabled(true));
         await i.update({ embeds: [tradeEmbed], components: [row] });
+        pendingOffers.delete(targetUser.id);
     });
 
     collector.on("end", async (collected, reason) => {
+        pendingOffers.delete(targetUser.id);
         if (reason === "time" && collected.size === 0) {
             tradeEmbed.setColor("Red")
                 .setDescription("❌ Trade offer expired!")
