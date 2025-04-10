@@ -1,4 +1,4 @@
-import { CommandInteraction, SlashCommandBuilder, AttachmentBuilder, MessageFlags } from "discord.js";
+import { CommandInteraction, SlashCommandBuilder, MessageFlags, EmbedBuilder } from "discord.js";
 import database from "../database/methods.ts";
 import levels from "../config/data/levels.json";
 import Canvas from 'canvas';
@@ -45,31 +45,10 @@ export async function execute(interaction: CommandInteraction) {
 
     const xp = userData?.xp;
     const currentLevel = userData?.level;
-    const requiredXp = levels.find(obj => obj.level === currentLevel)?.xp_to_upgrade!;
+    let requiredXp = levels.find(obj => obj.level === currentLevel)?.xp_to_upgrade!;
+    if(xp == null) requiredXp = -1;
 
-    let barsToAdd: number = 0;
-
-    if(xp >= requiredXp) barsToAdd = 10;
-    else barsToAdd = Math.floor((xp/requiredXp*10));
-
-    const canvas = Canvas.createCanvas(400, 100);
-    const ctx = canvas.getContext('2d');
-
-    ctx.fillStyle = "white";
-
-    ctx.drawImage(baseImage, 0, 0, canvas.width, canvas.height);
-    
-    ctx.fillText(`Level: ${currentLevel} - XP: ${xp}/${requiredXp}`, 20, 25);
-
-    let barWidth = 27;
-    let barHeight = 41;
-    
-    for(let i = 0; i < barsToAdd; i++) {
-        ctx.drawImage(bar, barWidth, barHeight, 20, 30);
-        barWidth += 25;
-    }
-
-    const finalAttachment = new AttachmentBuilder(canvas.toBuffer(), { name: `level_${Date.now()}.png` });
-
-    await interaction.editReply({ files: [finalAttachment] });
+    await interaction.editReply({
+        content: `**${user.username}** has **${xp}/${requiredXp === -1 ? "max" : requiredXp}** xp and is currently at level **${currentLevel}**`, 
+    })
 }
