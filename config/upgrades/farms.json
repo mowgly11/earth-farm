@@ -10,63 +10,63 @@
         "level": 2,
         "available_crop_slots": 6,
         "available_animal_slots": 3,
-        "storage_limit": 100,
-        "price": 750
+        "storage_limit": 75,
+        "price": 1000
     },
     {
         "level": 3,
         "available_crop_slots": 9,
         "available_animal_slots": 3,
-        "storage_limit": 200,
+        "storage_limit": 75,
         "price": 2000
     },
     {
         "level": 4,
         "available_crop_slots": 12,
         "available_animal_slots": 5,
-        "storage_limit": 300,
+        "storage_limit": 100,
         "price": 4500
     },
     {
         "level": 5,
         "available_crop_slots": 16,
         "available_animal_slots": 5,
-        "storage_limit": 400,
+        "storage_limit": 150,
         "price": 8000
     },
     {
         "level": 6,
         "available_crop_slots": 16,
         "available_animal_slots": 8,
-        "storage_limit": 550,
+        "storage_limit": 200,
         "price": 12000
     },
     {
         "level": 7,
         "available_crop_slots": 20,
         "available_animal_slots": 8,
-        "storage_limit": 700,
+        "storage_limit": 250,
         "price": 18000
     },
     {
         "level": 8,
         "available_crop_slots": 25,
         "available_animal_slots": 8,
-        "storage_limit": 900,
+        "storage_limit": 300,
         "price": 25000
     },
     {
         "level": 9,
         "available_crop_slots": 25,
         "available_animal_slots": 10,
-        "storage_limit": 1200,
+        "storage_limit": 350,
         "price": 35000
     },
     {
         "level": 10,
         "available_crop_slots": 30,
         "available_animal_slots": 12,
-        "storage_limit": 1500,
+        "storage_limit": 400,
         "price": 50000
     }
 ]
