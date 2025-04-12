@@ -58,14 +58,13 @@ export async function execute(interaction: CommandInteraction) {
 
     try {
         await database.undeployAnimal(dbProfile, slot);
-        await database.addItemTostorage(dbProfile, findItemInDatabase.name, 1, "market_items");
         await database.saveNestedObject(dbProfile, "storage");
 
         // Update cache with latest data
         const updatedProfile = (dbProfile as any).toObject();
         userProfileCache.set(userId, updatedProfile);
 
-        return interaction.editReply({ content: `successfully removed ${findItemInDatabase.name} from the farm, it will be returned to your barn.` });
+        return interaction.editReply({ content: `successfully removed **${findItemInDatabase.name}** from the farm.` });
     } catch (error) {
         logError(interaction.client, {
             path: 'unraise.ts',
