@@ -1,18 +1,7 @@
 import { CommandInteraction, SlashCommandBuilder, MessageFlags, EmbedBuilder } from "discord.js";
 import database from "../database/methods.ts";
 import levels from "../config/data/levels.json";
-import Canvas from 'canvas';
-import { join } from "path";
 import { userProfileCache } from "../index.ts";
-
-let baseImage: any;
-let bar: any;
-
-//load the images on the program start so it doesn't get loaded everytime the command is executed
-(async() => {
-    baseImage = await Canvas.loadImage(join(__dirname, "../assets", "barholder.png"));
-    bar = await Canvas.loadImage(join(__dirname, "../assets", "bar.png"));
-})();
 
 export const data = new SlashCommandBuilder()
     .setName("xp")
