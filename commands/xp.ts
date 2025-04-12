@@ -1,4 +1,4 @@
-import { CommandInteraction, SlashCommandBuilder, MessageFlags, EmbedBuilder } from "discord.js";
+import { CommandInteraction, SlashCommandBuilder, MessageFlags } from "discord.js";
 import database from "../database/methods.ts";
 import levels from "../config/data/levels.json";
 import { userProfileCache } from "../index.ts";
