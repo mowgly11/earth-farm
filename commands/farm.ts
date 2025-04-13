@@ -8,7 +8,7 @@ import type { FarmCanvasProperties } from "../types/commands_types.ts";
 import getImage from "../utils/image_loading.ts";
 
 let assetsPath = join(__dirname, '../assets');
-let allDirectories = fs.readdirSync(assetsPath);
+let allDirectories = fs.readdirSync(assetsPath).filter((dir) => dir !== "products" && dir !== "cards");
 
 let imagesObj: Record<string, Image> = {};
 
@@ -76,7 +76,7 @@ export async function execute(interaction: CommandInteraction) {
 
     ctx.drawImage(imagesObj["base"], 0, 0, canvas.width, canvas.height); // drawing the base image
 
-    ctx.drawImage(imagesObj[farmProperties.barn], 160, 10, 130, 130); // X - Y - width - height drawing the barn image depending on the level
+    ctx.drawImage(imagesObj[farmProperties.barn], 165, 10, 120, 130); // X - Y - width - height drawing the barn image depending on the level
 
     let lastDrawnCropXandY = [170, 150];
     let lastDrawnAnimalXandY = [25, 170];
@@ -123,7 +123,7 @@ export async function execute(interaction: CommandInteraction) {
 
     const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: "farm.png" });
 
-    await interaction.editReply({ content: stringifySlots(userProfile.farm) + "Here is a picture of your farm", files: [attachment] });
+    await interaction.editReply({ content: stringifySlots(userProfile.farm) + "Here is a picture of " + interaction.user.username + " farm", files: [attachment] });
 }
 
 function stringifySlots(farmDetails: any) {
