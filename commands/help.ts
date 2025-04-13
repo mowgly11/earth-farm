@@ -14,7 +14,7 @@ export async function execute(interaction: CommandInteraction) {
         .addFields(
             {
                 name: "👤 Profile Commands",
-                value: "`/farmer` - Create or view your profile\n`/leaderboard` - View the leaderboard\n`/gold` - Check gold balance\n`/xp` - View experience progress\n`/daily` - Collect daily rewards\n`/barn` - View your storage",
+                value: "`/farmer` - Create or view your profile\n`/leaderboard` - View the leaderboard\n`/gold` - Check gold balance\n`/xp` - View experience progress\n`/daily` - Collect daily rewards\n`/scratch` - Scratch a card every 8 hours to gain gold or xp\n`/barn` - View your storage",
                 inline: false
             },
             {
