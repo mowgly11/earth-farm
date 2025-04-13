@@ -48,6 +48,9 @@ export async function execute(interaction: CommandInteraction) {
     }
 
     try {
+        dbProfile.markModified("daily");
+        dbProfile.markModified("gold");
+        
         await dbProfile.save();
     } catch (error) {
         logError(interaction.client, {
