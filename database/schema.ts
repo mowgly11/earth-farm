@@ -11,6 +11,7 @@ const schema: Schema = new Schema({
     xp: { type: Number, default: configuration.starter_xp },
     gold: { type: Number, default: configuration.starter_money },
     daily: { type: Number, default: 0 },
+    scratch: { type: Number, default: 0 },
     actions: {
         lastFed: { type: Number, default: 0 },
         lastPet: { type: Number, default: 0 },
