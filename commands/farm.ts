@@ -5,13 +5,7 @@ import Canvas, { type Image } from "canvas";
 import { join } from "path";
 import fs from "fs";
 import type { FarmCanvasProperties } from "../types/commands_types.ts";
-
-function getImage(imgPath: string): Promise<Image> {
-    return new Promise((async resolve => {
-        const image = await Canvas.loadImage(imgPath);
-        resolve(image);
-    }));
-}
+import getImage from "../utils/image_loading.ts";
 
 let assetsPath = join(__dirname, '../assets');
 let allDirectories = fs.readdirSync(assetsPath);
@@ -22,7 +16,7 @@ allDirectories.forEach((dir) => {
     let dirImages = fs.readdirSync(join(assetsPath, dir));
     dirImages.forEach(async (file) => {
         const image = await getImage(join(assetsPath, dir, file));
-        imagesObj[file] = image;
+        imagesObj[file.replace(".png", "")] = image;
     });
 });
 
@@ -56,12 +50,12 @@ export async function execute(interaction: CommandInteraction) {
     }
 
     let farmProperties: FarmCanvasProperties = {
-        barn: "level_1_barn.png",
+        barn: "level_1_barn",
         crops: [],
         animals: []
     };
 
-    farmProperties.barn = `level_${userProfile.farm.level}_barn.png`;
+    farmProperties.barn = `level_${userProfile.farm.level}_barn`;
 
     farmProperties.crops = userProfile.farm.occupied_crop_slots.map((crop: Record<string, string | number>) => {
         return {
@@ -80,7 +74,7 @@ export async function execute(interaction: CommandInteraction) {
     const canvas = Canvas.createCanvas(300, 300);
     const ctx = canvas.getContext("2d");
 
-    ctx.drawImage(imagesObj["base.png"], 0, 0, canvas.width, canvas.height); // drawing the base image
+    ctx.drawImage(imagesObj["base"], 0, 0, canvas.width, canvas.height); // drawing the base image
 
     ctx.drawImage(imagesObj[farmProperties.barn], 160, 10, 130, 130); // X - Y - width - height drawing the barn image depending on the level
 
@@ -91,8 +85,8 @@ export async function execute(interaction: CommandInteraction) {
         for (let i = 0; i < farmProperties.crops.length; i++) {
             const crop = farmProperties.crops[i];
             let cropImg: Image;
-            if (Date.now() > crop.ready_at) cropImg = imagesObj[`full_${crop.name.toLowerCase()}.png`];
-            else cropImg = imagesObj[`started_${crop.name.toLowerCase()}.png`];
+            if (Date.now() > crop.ready_at) cropImg = imagesObj[`full_${crop.name.toLowerCase()}`];
+            else cropImg = imagesObj[`started_${crop.name.toLowerCase()}`];
 
             let cropX = lastDrawnCropXandY[0];
             let cropY = lastDrawnCropXandY[1];
@@ -111,8 +105,8 @@ export async function execute(interaction: CommandInteraction) {
         for (let i = 0; i < farmProperties.animals.length; i++) {
             const animal = farmProperties.animals[i];
             let animalImg: Image;
-            if (Date.now() > animal.ready_at) animalImg = imagesObj[`ready_${animal.name.split(" ").join("").toLowerCase()}.png`];
-            else animalImg = imagesObj[`${animal.name.split(" ").join("").toLowerCase()}.png`];
+            if (Date.now() > animal.ready_at) animalImg = imagesObj[`ready_${animal.name.split(" ").join("").toLowerCase()}`];
+            else animalImg = imagesObj[`${animal.name.split(" ").join("").toLowerCase()}`];
 
             let animalX = lastDrawnAnimalXandY[0];
             let animalY = lastDrawnAnimalXandY[1];
