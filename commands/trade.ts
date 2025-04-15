@@ -3,7 +3,6 @@ import database from "../database/methods.ts";
 import marketItems from "../config/items/market_items.json";
 import products from "../config/items/products.json";
 import market from "../config/data/market.json";
-import type { User } from "../types/database_types";
 import { logTransaction } from "../utils/transaction_logger.ts";
 import { userProfileCache } from "../index.ts";
 import schema from "../database/schema.ts";
@@ -61,7 +60,7 @@ export const data = new SlashCommandBuilder()
 
 // Helper function to get item level requirement
 function getItemLevel(itemName: string): number {
-    const categories: MarketCategory[] = ['seeds', 'animals', 'crops', 'animal_products', 'upgrades'];
+    const categories: MarketCategory[] = ['seeds', 'animals', 'crops', 'animal_products'];
     for (const category of categories) {
         const item = market.market[category].find((i: { name: string; level: number }) => i.name === itemName);
         if (item) return item.level;
