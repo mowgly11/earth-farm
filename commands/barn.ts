@@ -51,7 +51,7 @@ export async function execute(interaction: CommandInteraction) {
 
     ctx.drawImage(imagesObj['barn_interior_base'], 0, 0, canvas.width, canvas.height);
 
-    let lastDrawnCropXandY = [75, 95]; // X - Y
+    let lastDrawnCropXandY = [55, 105]; // X - Y
 
     if (userProfile.storage.products.length > 0) {
         for (let i = 0; i < userProfile.storage.products.length; i++) {
@@ -60,12 +60,12 @@ export async function execute(interaction: CommandInteraction) {
 
             
             if (i > 0 && i % 5 === 0) {
-                lastDrawnCropXandY[0] = 75;
+                lastDrawnCropXandY[0] = 55;
                 lastDrawnCropXandY[1] += 40;
             }
             
             ctx.drawImage(productImage, lastDrawnCropXandY[0], lastDrawnCropXandY[1], 27, 30);
-            lastDrawnCropXandY[0] += 30;
+            lastDrawnCropXandY[0] += 40;
         }
     }
 
