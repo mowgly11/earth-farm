@@ -13,16 +13,20 @@ databaseConnection.connect();
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages], allowedMentions: { repliedUser: false } });
 
+let currentStatus = ["/help", "", "build 0.0.3"];
+let i = 0;
 client.on(Events.ClientReady, async readyClient => {
   await deployCommands();
   //await flushCommands();
 
   console.log(`Ready! Logged in as ${readyClient.user.tag}`);
   client.user?.setStatus("idle");
-  let currentStatus = true;
+
   setInterval(() => {
-    client.user?.setActivity(currentStatus ? `/help` : `${client.guilds.cache.size} servers`, { type: ActivityType.Watching });
-    currentStatus = !currentStatus;
+    currentStatus[1] = `${client.guilds.cache.size} servers`;
+    client.user?.setActivity(currentStatus[i], { type: ActivityType.Watching });
+    i++;
+    i = (i + 1) % currentStatus.length;
   }, 15000);
 });
 
