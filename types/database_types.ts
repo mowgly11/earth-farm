@@ -18,7 +18,8 @@ export type OccupiedAnimalSlot = {
     ready_time: number,
     gives: string,
     total_boost: number,
-    boost_expires_at: number
+    boost_expires_at: number,
+    lifetime: number,
 }
 
 export type Farm = {
