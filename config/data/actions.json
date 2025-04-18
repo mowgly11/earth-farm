@@ -1,17 +1,17 @@
 {
   "actions": {
     "feeding": {
-      "boost": 5,
+      "boost": 20,
       "cooldown": 7200000,
       "description": "Feed your animals to boost their productivity"
     },
     "petting": {
-      "boost": 1,
+      "boost": 10,
       "cooldown": 2700000,
       "description": "Pet your animals to boost their productivity"
     },
     "cleaning": {
-      "boost": 3,
+      "boost": 15,
       "cooldown": 3600000,
       "description": "Clean your animals' area to boost their productivity"
     }
