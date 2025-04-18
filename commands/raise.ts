@@ -49,7 +49,7 @@ export async function execute(interaction: CommandInteraction) {
     if (userProfile.farm.occupied_animal_slots.length >= userProfile.farm.available_animal_slots) 
         return interaction.editReply({ content: `you can't raise **${animal}**, all slots are occupied.` });
 
-    const findItemInDatabase = marketItems.find(v => v.name === animal)!;
+    const jsonitem = userProfile.storage.market_items.find((v: any) => v.name === animal)!;
 
     // Hydrate the cached profile into a Mongoose document
     const dbProfile = schema.hydrate(userProfile);
@@ -60,14 +60,14 @@ export async function execute(interaction: CommandInteraction) {
 
     try {
         await database.removeItemFromstorage(dbProfile, animal, 1, "market_items");
-        await database.deployAnimal(dbProfile, findItemInDatabase);
+        await database.deployAnimal(dbProfile, Object.assign({}, jsonitem));
         await database.saveNestedObject(dbProfile, "farm");
 
         // Update cache with latest data
         const updatedProfile = (dbProfile as any).toObject();
         userProfileCache.set(userId, updatedProfile);
 
-        return interaction.editReply({ content: `successfully raised **${animal}**, it will produce goods every **${findItemInDatabase.ready_time/1000/60}mins**` });
+        return interaction.editReply({ content: `successfully raised **${animal}**, it will produce goods every **${jsonitem.ready_time/1000/60}mins**` });
     } catch (error) {
         logError(interaction.client, {
             path: 'raise.ts',
