@@ -39,7 +39,7 @@ export async function execute(interaction: CommandInteraction) {
     }
 
     if (slotNumber > userProfile.farm.occupied_animal_slots.length) {
-        return interaction.editReply({ content: `Slot ${slotNumber} doesn't exist! You only have ${userProfile.farm.occupied_animal_slots.length} animal slots occupied.` });
+        return interaction.editReply({ content: `Slot **${slotNumber}** doesn't exist! You only have **${userProfile.farm.occupied_animal_slots.length}** animal slots occupied.` });
     }
 
     const now = Date.now();
@@ -48,7 +48,7 @@ export async function execute(interaction: CommandInteraction) {
 
     if (lastPet + cooldown > now) {
         const timeLeft = Math.ceil((lastPet + cooldown - now) / 1000 / 60);
-        return interaction.editReply({ content: `You need to wait ${timeLeft} minutes before petting again!` });
+        return interaction.editReply({ content: `You need to wait **${timeLeft}** minutes before petting again!` });
     }
 
     // Update cache immediately
@@ -60,7 +60,7 @@ export async function execute(interaction: CommandInteraction) {
     const timeLeft = animalSlot.ready_at - now;
     
     if (timeLeft <= 0) {
-        return interaction.editReply({ content: `The animal in slot ${slotNumber} is ready to harvest! No need to pet it.` });
+        return interaction.editReply({ content: `The animal in slot **${slotNumber}** is ready to harvest! No need to pet it.` });
     }
 
     // Check if previous boost has expired
@@ -105,5 +105,5 @@ export async function execute(interaction: CommandInteraction) {
         return interaction.editReply({ content: "An error occurred while processing your request." });
     }
 
-    return interaction.editReply({ content: `Successfully pet animal in slot ${slotNumber}! Production speed increased by ${boost}% (Total boost: ${animalSlot.total_boost}%)` });
+    return interaction.editReply({ content: `Successfully pet animal in slot **${slotNumber}**! Production speed increased by **${boost}%** (Total boost: **${animalSlot.total_boost}%**)` });
 }

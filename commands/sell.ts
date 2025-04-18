@@ -99,14 +99,14 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         if (subcommand === "item") {
             if (quantity === "all") {
                 let item = userProfile.storage.market_items.find((v: Record<string, string | number>) => v?.name === name);
-                if (!item) return interaction.editReply({ content: `You can't sell ${name}. You either don't own it or don't own any of it.` });
+                if (!item) return interaction.editReply({ content: `You can't sell **${name}**. You either don't own it or don't own any of it.` });
                 quantity = Number(item?.amount);
             }
             quantity = Number(quantity);
 
             // Handle market item selling
             if (!userProfile.storage.market_items.find((v: Record<string, string | number>) => v?.name === name && Number(v?.amount) >= Number(quantity))) {
-                return interaction.editReply({ content: `You can't sell ${name}. You either don't own it or don't own ${quantity} of it.` });
+                return interaction.editReply({ content: `You can't sell **${name}**. You either don't own it or don't own **${quantity}** of it.` });
             }
 
             const findItemInDatabase = marketItems.find(v => v.name === name)!;
@@ -134,18 +134,18 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 initiatorGoldAfter: Number(goldAfter)
             });
 
-            return interaction.editReply({ content: `Successfully sold ${quantity} of ${name} for a total price of ${sellingPrice} 🪙` });
+            return interaction.editReply({ content: `Successfully sold **${quantity}** of **${name}** for a total price of **${sellingPrice}** 🪙` });
 
         } else if (subcommand === "product") {
             if (quantity === "all") {
                 let item = userProfile.storage.products.find((v: Record<string, string | number>) => v?.name === name);
-                if (!item) return interaction.editReply({ content: `You can't sell ${name}. You either don't own it or don't own any of it.` });
+                if (!item) return interaction.editReply({ content: `You can't sell **${name}**. You either don't own it or don't own any of it.` });
                 quantity = Number(item?.amount);
             }
             quantity = Number(quantity);
             // Handle product selling
             if (!userProfile.storage.products.find((v: Record<string, string | number>) => v?.name === name && Number(v?.amount) >= Number(quantity))) {
-                return interaction.editReply({ content: `You can't sell ${name}. You either don't own it or don't own ${quantity} of it.` });
+                return interaction.editReply({ content: `You can't sell **${name}**. You either don't own it or don't own **${quantity}** of it.` });
             }
 
             const findItemInDatabase = products.find(v => v.name === name)!;
@@ -173,7 +173,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 initiatorGoldAfter: Number(goldAfter)
             });
 
-            return interaction.editReply({ content: `Successfully sold ${quantity} of ${name} for a total price of ${sellingPrice} 🪙` });
+            return interaction.editReply({ content: `Successfully sold **${quantity}** of **${name}** for a total price of **${sellingPrice}** 🪙` });
         }
     } catch (error) {
         logError(interaction.client, {

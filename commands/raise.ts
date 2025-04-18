@@ -44,10 +44,10 @@ export async function execute(interaction: CommandInteraction) {
     }
 
     if (!userProfile.storage.market_items.find((v: Record<string, string | number>) => v?.name === animal)
-    ) return interaction.editReply({ content: `you can't deploy ${animal} as you don't own it.` });
+    ) return interaction.editReply({ content: `you can't raise **${animal}** as you don't own it.` });
 
     if (userProfile.farm.occupied_animal_slots.length >= userProfile.farm.available_animal_slots) 
-        return interaction.editReply({ content: `you can't plant ${animal}, all slots are occupied.` });
+        return interaction.editReply({ content: `you can't raise **${animal}**, all slots are occupied.` });
 
     const findItemInDatabase = marketItems.find(v => v.name === animal)!;
 
@@ -67,7 +67,7 @@ export async function execute(interaction: CommandInteraction) {
         const updatedProfile = (dbProfile as any).toObject();
         userProfileCache.set(userId, updatedProfile);
 
-        return interaction.editReply({ content: `successfully deployed ${animal}, it will produce goods every ${findItemInDatabase.ready_time/1000/60}mins` });
+        return interaction.editReply({ content: `successfully raised **${animal}**, it will produce goods every **${findItemInDatabase.ready_time/1000/60}mins**` });
     } catch (error) {
         logError(interaction.client, {
             path: 'raise.ts',

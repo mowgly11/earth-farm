@@ -28,7 +28,7 @@ export async function execute(interaction: CommandInteraction) {
     // If not in cache, get from database and cache it
     if (!userProfile) {
       const dbProfile = await database.findUser(mentionedUserId.id);
-      if (!dbProfile) return interaction.editReply({ content: `${mentionedUserId.username}'s farm wasn't found.` });
+      if (!dbProfile) return interaction.editReply({ content: `**${mentionedUserId.username}**'s farm wasn't found.` });
       
       // Cache the plain object
       userProfile = (dbProfile as any).toObject();

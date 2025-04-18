@@ -23,12 +23,12 @@ export async function execute(interaction: CommandInteraction) {
   // If not in cache, get from database and cache it
   if (!userProfile) {
     const dbProfile = await database.findUser(user.id);
-    if (!dbProfile) return interaction.editReply({ content: `${user.username}'s gold stash wasn't found. ${user.id === interaction.user.id ? "please use `/farmer` before trying to check your gold balance." : ""}` });
+    if (!dbProfile) return interaction.editReply({ content: `**${user.username}**'s gold stash wasn't found. ${user.id === interaction.user.id ? "please use `/farmer` before trying to check your gold balance." : ""}` });
     
     // Cache the plain object
     userProfile = (dbProfile as any).toObject();
     userProfileCache.set(user.id, userProfile);
   }
 
-  return interaction.editReply({ content: `${userProfile.username} has a total of **${userProfile?.gold}** 🪙` });
+  return interaction.editReply({ content: `**${userProfile.username}** has a total of **${userProfile?.gold}** 🪙` });
 }

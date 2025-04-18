@@ -39,7 +39,7 @@ export async function execute(interaction: CommandInteraction) {
     }
 
     if (slotNumber > userProfile.farm.occupied_animal_slots.length) {
-        return interaction.editReply({ content: `Slot ${slotNumber} doesn't exist! You only have ${userProfile.farm.occupied_animal_slots.length} animal slots occupied.` });
+        return interaction.editReply({ content: `Slot **${slotNumber}** doesn't exist! You only have **${userProfile.farm.occupied_animal_slots.length}** animal slots occupied.` });
     }
 
     const now = Date.now();
@@ -48,7 +48,7 @@ export async function execute(interaction: CommandInteraction) {
 
     if (lastFed + cooldown > now) {
         const timeLeft = Math.ceil((lastFed + cooldown - now) / 1000 / 60);
-        return interaction.editReply({ content: `You need to wait ${timeLeft} minutes before feeding again!` });
+        return interaction.editReply({ content: `You need to wait **${timeLeft}** minutes before feeding again!` });
     }
 
     // Update cache immediately
@@ -60,7 +60,7 @@ export async function execute(interaction: CommandInteraction) {
     const timeLeft = animalSlot.ready_at - now;
     
     if (timeLeft <= 0) {
-        return interaction.editReply({ content: `The animal in slot ${slotNumber} is ready to harvest! No need to feed it.` });
+        return interaction.editReply({ content: `The animal in slot **${slotNumber}** is ready to harvest! No need to feed it.` });
     }
 
     // Check if previous boost has expired
@@ -105,5 +105,5 @@ export async function execute(interaction: CommandInteraction) {
         return interaction.editReply({ content: "An error occurred while processing your request." });
     }
 
-    return interaction.editReply({ content: `Successfully fed animal in slot ${slotNumber}! Production speed increased by ${boost}% (Total boost: ${animalSlot.total_boost}%)` });
+    return interaction.editReply({ content: `Successfully fed animal in slot **${slotNumber}**! Production speed increased by **${boost}%** (Total boost: **${animalSlot.total_boost}%**)` });
 }

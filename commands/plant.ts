@@ -54,13 +54,13 @@ export async function execute(interaction: CommandInteraction) {
   }
 
   if (!userProfile.storage.market_items.find((v: Record<string, string | number>) => v?.name === item && v?.amount >= quantity)
-  ) return interaction.editReply({ content: `you can't plant ${item}.` });
+  ) return interaction.editReply({ content: `you can't plant **${item}**.` });
 
   if ((userProfile.farm.available_crop_slots - userProfile.farm.occupied_crop_slots.length) < quantity
-  ) return interaction.editReply({ content: `you can't plant ${item}, not enough slots to plant this amount.` });
+  ) return interaction.editReply({ content: `you can't plant **${item}**, not enough slots to plant this amount.` });
 
   if (userProfile.farm.occupied_crop_slots.length >= userProfile.farm.available_crop_slots
-  ) return interaction.editReply({ content: `you can't plant ${item}, all slots are occupied.` });
+  ) return interaction.editReply({ content: `you can't plant **${item}**, all slots are occupied.` });
 
   const findItemInDatabase = marketItems.find(v => v.name === item)!;
 
@@ -83,7 +83,7 @@ export async function execute(interaction: CommandInteraction) {
     const updatedProfile = (dbProfile as any).toObject();
     userProfileCache.set(userId, updatedProfile);
 
-    return interaction.editReply({ content: `Successfully planted **${quantity}** of **${findItemInDatabase.name}**. it will be ready in **${findItemInDatabase.ready_time / 1000}s**` });
+    return interaction.editReply({ content: `Successfully planted **${quantity}** of **${findItemInDatabase.name}**. it will be ready in **${findItemInDatabase.ready_time/1000/60}mins**` });
   } catch (error) {
     logError(interaction.client, {
       path: "plant.ts",
