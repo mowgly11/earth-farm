@@ -211,8 +211,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         if (i.customId === "accept") {
             try {
                 // Hydrate both profiles into Mongoose documents
-                const initiatorDbProfile = schema.hydrate(initiatorProfile);
-                const targetDbProfile = schema.hydrate(targetProfile);
+                const initiatorDbProfile: any = schema.hydrate(initiatorProfile);
+                const targetDbProfile: any = schema.hydrate(targetProfile);
                 
                 if (!initiatorDbProfile || !targetDbProfile) {
                     userProfileCache.del(interaction.user.id);
@@ -223,10 +223,13 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 const initiatorGoldBefore = (initiatorProfile as any).gold;
                 const targetGoldBefore = (targetProfile as any).gold;
 
+                let reqItemObj = targetDbProfile.storage[requestType].find((v: { name: string; amount: number }) => v.name === requestItem);
+                let offeredItemObj = initiatorDbProfile.storage[offerType].find((v: { name: string; amount: number }) => v.name === offerItem);
+                
                 await database.removeItemFromstorage(initiatorDbProfile, offerItem, offerQuantity, offerType as "market_items" | "products");
                 await database.removeItemFromstorage(targetDbProfile, requestItem, requestQuantity, requestType as "market_items" | "products");
-                await database.addItemTostorage(initiatorDbProfile, requestItem, requestQuantity, requestType as "market_items" | "products");
-                await database.addItemTostorage(targetDbProfile, offerItem, offerQuantity, offerType as "market_items" | "products");
+                await database.addItemToStorage(initiatorDbProfile, reqItemObj, requestQuantity, requestType as "market_items" | "products");
+                await database.addItemToStorage(targetDbProfile, offeredItemObj, offerQuantity, offerType as "market_items" | "products");
 
                 // Update cache for both users
                 const updatedInitiatorProfile = (initiatorDbProfile as any).toObject();
@@ -261,7 +264,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 logError(interaction.client, {
                     path: 'trade.ts',
                     error
-                })
+                });
                 userProfileCache.del(interaction.user.id);
                 userProfileCache.del(targetUser.id);
                 tradeEmbed.setColor("Red")
