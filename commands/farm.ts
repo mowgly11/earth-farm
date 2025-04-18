@@ -42,7 +42,7 @@ export async function execute(interaction: CommandInteraction) {
     // If not in cache, get from database and cache it
     if (!userProfile) {
         const dbProfile = await database.findUser(user.id);
-        if (!dbProfile) return interaction.editReply({ content: `${user.username}'s farm wasn't found.` });
+        if (!dbProfile) return interaction.editReply({ content: `**${user.username}**'s farm wasn't found.` });
 
         // Cache the plain object
         userProfile = (dbProfile as any).toObject();
@@ -164,6 +164,7 @@ function stringifySlots(farmDetails: any) {
         else {
             strOfUserData += "\n";
             for (let j = 0; j < val.length; j++) {
+                strOfUserData += `## **Slot ${j + 1}**\n`;
                 let slotType = keys[i] === "occupied_crop_slots" ? "plant" : "animal";
                 let objKeys = Object.keys(val[j]);
                 for (let k = 0; k < objKeys.length; k++) {
@@ -171,9 +172,15 @@ function stringifySlots(farmDetails: any) {
                     if (objKeys[k] === "gives" ||
                         objKeys[k] === "ready_time" ||
                         objKeys[k] === "boost_expires_at" ||
-                        objKeys[k] === "total_boost") continue;
+                        objKeys[k] === "total_boost" ||
+                        objKeys[k] === "level" ||
+                        objKeys[k] === "buy_price" ||
+                        objKeys[k] === "sell_price" ||
+                        objKeys[k] === "type" ||
+                        objKeys[k] === "food" // for later feature.
+                    ) continue;
 
-                    strOfUserData += `**Slot ${j + 1} ${slotType} ${objKeys[k].replace(/_/g, " ")}:** ${objKeys[k] === "ready_at" ? String(((val[j][objKeys[k]] - Date.now()) / 1000) < 0 ? "Ready!" : ((val[j][objKeys[k]] - Date.now()) / 1000).toFixed(0) + 's') : val[j][objKeys[k]]}\n`;
+                    strOfUserData += `**${objKeys[k].replace(/_/g, " ")}:** ${objKeys[k] === "ready_at" ? String(((val[j][objKeys[k]] - Date.now()) / 1000) < 0 ? "Ready!" : ((val[j][objKeys[k]] - Date.now()) / 1000).toFixed(0) + 's') : objKeys[k] === "lifetime" ? (val[j][objKeys[k]] - Date.now()) < 0 ? "Deceased" : ((val[j][objKeys[k]] - Date.now()) / 1000 / 60 / 60).toFixed(0) + "h" : val[j][objKeys[k]]}\n`;
                 }
                 // Add total boost display if it's an animal slot
                 if (slotType === "animal") {
