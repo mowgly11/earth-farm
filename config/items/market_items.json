@@ -6,7 +6,11 @@
         "buy_price": 75,
         "sell_price": 40,
         "ready_time": 180000,
-        "type": "animals"
+        "food": [
+            "Corn"
+        ],
+        "type": "animals",
+        "lifetime": 86400000
     },
     {
         "name": "Cow",
@@ -15,7 +19,11 @@
         "buy_price": 250,
         "sell_price": 175,
         "ready_time": 300000,
-        "type": "animals"
+        "food": [
+            "Wheat"
+        ],
+        "type": "animals",
+        "lifetime": 172800000
     },
     {
         "name": "Sheep",
@@ -24,7 +32,11 @@
         "buy_price": 300,
         "sell_price": 220,
         "ready_time": 420000,
-        "type": "animals"
+        "food": [
+            "Wheat"
+        ],
+        "type": "animals",
+        "lifetime": 172800000
     },
     {
         "name": "Goat",
@@ -33,16 +45,11 @@
         "buy_price": 450,
         "sell_price": 320,
         "ready_time": 480000,
-        "type": "animals"
-    },
-    {
-        "name": "Bee Colony",
-        "gives": "Honey",
-        "level": 5,
-        "buy_price": 900,
-        "sell_price": 750,
-        "ready_time": 600000,
-        "type": "animals"
+        "food": [
+            "Corn"
+        ],
+        "type": "animals",
+        "lifetime": 216000000
     },
     {
         "name": "Duck",
@@ -51,7 +58,11 @@
         "buy_price": 350,
         "sell_price": 280,
         "ready_time": 240000,
-        "type": "animals"
+        "food": [
+            "Corn"
+        ],
+        "type": "animals",
+        "lifetime": 129600000
     },
     {
         "name": "Wheat Seeds",
