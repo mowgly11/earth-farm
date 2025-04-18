@@ -13,7 +13,7 @@ databaseConnection.connect();
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages], allowedMentions: { repliedUser: false } });
 
-let currentStatus = ["/help", "", "build 0.0.3"];
+let currentStatus = ["/help", "", "build 0.0.4"];
 let i = 0;
 client.on(Events.ClientReady, async readyClient => {
   await deployCommands();
