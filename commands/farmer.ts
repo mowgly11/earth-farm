@@ -1,7 +1,17 @@
-import { CommandInteraction, SlashCommandBuilder, EmbedBuilder, MessageFlags } from "discord.js";
+import { CommandInteraction, SlashCommandBuilder, AttachmentBuilder, MessageFlags, User } from "discord.js";
 import database from '../database/methods.ts';
 import { userProfileCache } from "../index.ts";
-import schema from "../database/schema.ts";
+import Canvas from "canvas";
+import path from "path";
+
+Canvas.registerFont(path.join(__dirname, "../fonts", "lumber.ttf"), { family: 'CustomFont' });
+
+let baseProfileImagePath: string = path.join(__dirname, '../assets', "base", 'profile.jpg');
+let baseProfileImage: Canvas.Image;
+
+(async () => {
+  baseProfileImage = await Canvas.loadImage(baseProfileImagePath);
+})();
 
 export const data = new SlashCommandBuilder()
   .setName("farmer")
@@ -14,109 +24,106 @@ export const data = new SlashCommandBuilder()
 
 export async function execute(interaction: CommandInteraction) {
 
-  const mentionedUserId = interaction.options.get("target")?.user;
+  const mentionedUser = interaction.options.get("target")?.user;
   let user: any;
 
-  if (mentionedUserId?.bot) return interaction.reply({ content: "you can't interact with bots!", flags: MessageFlags.Ephemeral });
+  if (mentionedUser?.bot) return interaction.reply({ content: "you can't interact with bots!", flags: MessageFlags.Ephemeral });
 
   await interaction.deferReply();
 
-  if (mentionedUserId) {
+  let discordUser: User;
+
+  if (mentionedUser) {
+    discordUser = mentionedUser;
     // Check cache first for mentioned user
-    let userProfile: any = userProfileCache.get(mentionedUserId.id);
-    
+    let userProfile: any = userProfileCache.get(mentionedUser.id);
+
     // If not in cache, get from database and cache it
     if (!userProfile) {
-      const dbProfile = await database.findUser(mentionedUserId.id);
-      if (!dbProfile) return interaction.editReply({ content: `**${mentionedUserId.username}**'s farm wasn't found.` });
-      
+      const dbProfile = await database.findUser(mentionedUser.id);
+      if (!dbProfile) return interaction.editReply({ content: `**${mentionedUser.username}**'s farm wasn't found.` });
+
       // Cache the plain object
       userProfile = (dbProfile as any).toObject();
-      userProfileCache.set(mentionedUserId.id, userProfile);
+      userProfileCache.set(mentionedUser.id, userProfile);
     }
     user = userProfile;
   } else {
-    const userId = interaction.user?.id;
+    discordUser = interaction.user;
     const username = interaction.user?.username;
 
-    if (userId) {
+    if (discordUser.id) {
       // Check cache first
-      let userProfile: any = userProfileCache.get(userId);
-      
+      let userProfile: any = userProfileCache.get(discordUser.id);
+
       // If not in cache, get from database and cache it
       if (!userProfile) {
-        const dbProfile = await database.findUser(userId);
+        const dbProfile = await database.findUser(discordUser.id);
         if (!dbProfile) {
-          const newUser = await database.createUser(userId, username);
+          const newUser = await database.createUser(discordUser.id, username);
           if (newUser) {
             // Cache the new user
             userProfile = (newUser as any).toObject();
-            userProfileCache.set(userId, userProfile);
+            userProfileCache.set(discordUser.id, userProfile);
             return interaction.editReply({ content: `Hey there **${interaction.user.username}**! looks like its your first time playing Earth bot. i'll setup everything you'll need through your adventure. Enjoy!` });
           }
           return interaction.editReply({ content: "an error occurred" });
         }
-        
+
         // Cache the plain object
         userProfile = (dbProfile as any).toObject();
-        userProfileCache.set(userId, userProfile);
+        userProfileCache.set(discordUser.id, userProfile);
       }
       user = userProfile;
     }
   }
 
+  let statsToDisplay: Array<string> = [
+    `Gold: ${user?.gold}`,
+    `Level: ${user?.level}`,
+    `XP: ${user?.xp}`,
+    `Farm Level: ${user?.farm?.level}`,
+    `Crop Slots: ${user?.farm?.available_crop_slots}`,
+    `Animals Slots: ${user?.farm?.available_animal_slots}`,
+    `Storage Limit: ${user?.farm?.storage_limit}`,
+  ]
 
-  let userInfoFields: Array<UserInfoFields> = [{
-    name: "Gold",
-    value: String(user?.gold),
-    inline: true,
-  },
-  {
-    name: "Level",
-    value: String(user?.level),
-    inline: true,
-  },
-  {
-    name: "Experience Points (XP)",
-    value: String(user?.xp),
-    inline: true,
-  },
-  {
-    name: "Farm Level",
-    value: String(user?.farm?.level),
-    inline: true,
-  },
-  {
-    name: "Crop Slots",
-    value: String(user?.farm?.available_crop_slots),
-    inline: true,
-  },
-  {
-    name: "Animals Slots",
-    value: String(user?.farm?.available_animal_slots),
-    inline: true,
-  },
-  {
-    name: "Storage Limit",
-    value: String(user?.farm?.storage_limit),
-    inline: true,
-  }];
+  const canvas = Canvas.createCanvas(450, 300);
+  const ctx = canvas.getContext("2d");
+  ctx.font = "bold 20px CustomFont";
+  ctx.fillStyle = "#673c07";
 
-  const farmerEmbed = new EmbedBuilder()
-    .setTitle(`👤 ${user.username}'s Profile`)
-    .setColor("#FFD700")
-    .setThumbnail(interaction.user.displayAvatarURL())
-    .setDescription(`**Level ${user?.level}** Farmer`)
-    .addFields(...userInfoFields)
-    .setFooter({ text: `Farm Level ${user?.farm?.level}` })
-    .setTimestamp()
-    .setImage("https://i.imgur.com/NiXXCZf.png");
+  ctx.drawImage(baseProfileImage, 0, 0, canvas.width, canvas.height);
 
-  await interaction.editReply({ embeds: [farmerEmbed] });
-}
+  // all the text and stats
 
-type UserInfoFields = {
-  name: string;
-  value: string;
-  inline?: boolean;
+  ctx.fillText(`${discordUser.username}'s Profile`, 60, 80);
+
+  let lastXandYValue = [30, 110];
+  for(let i = 0; i < statsToDisplay.length; i++) {
+    if(i > 0 && i % 4 === 0) {
+      lastXandYValue[0]+=110;
+      lastXandYValue[1] = 110;
+    } 
+    
+    ctx.fillText(statsToDisplay[i], lastXandYValue[0], lastXandYValue[1]);
+    lastXandYValue[1] += 20;
+  }
+
+  // avatar clipping and drawing
+
+  ctx.beginPath();
+  ctx.arc(370, 150, 30, 0, 2 * Math.PI);
+  ctx.closePath();
+  ctx.clip();
+
+  const avatar = await Canvas.loadImage(`https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`);
+
+  ctx.drawImage(avatar, 338, 120, 62, 62) // X=limn  Y=lfo9
+
+  // crafting the final attachment
+
+  const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: "farmer.png" });
+
+  await interaction.editReply({ files: [attachment] });
 }
