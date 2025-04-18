@@ -38,13 +38,15 @@ class DatabaseMethods {
         }
     }
 
-    async addItemTostorage(userProfile: any, item: string, quantity: number, type: string) {
-        let storageList = userProfile.storage.market_items;
-        let itemIndex = storageList.findIndex((v: any) => v?.name === item);
+    async addItemToStorage(userProfile: any, item: Record<string, string | number | string[] | undefined>, quantity: number, type: "market_items" | "products") {
+        let storageList = userProfile.storage[type];
+        let itemIndex = storageList.findIndex((v: any) => v?.name === item.name);
 
         if (itemIndex !== -1) storageList[itemIndex].amount += quantity;
-
-        else storageList.push({ name: item, amount: quantity, type });
+        else {
+            item.amount = quantity;
+            storageList.push(item);
+        }
 
         await this.saveNestedObject(userProfile, "storage");
     }
@@ -73,11 +75,11 @@ class DatabaseMethods {
         });
     }
 
-    async harvestReadyPlants(userProfile: any, storageLeft:number) {
+    async harvestReadyPlants(userProfile: any, storageLeft: number) {
         const harvestPlantsLength = userProfile.farm.occupied_crop_slots.length;
         let harvestLoopLength = 0;
 
-        if(harvestPlantsLength > storageLeft) harvestLoopLength = storageLeft;
+        if (harvestPlantsLength > storageLeft) harvestLoopLength = storageLeft;
         else harvestLoopLength = harvestPlantsLength;
 
         let ready = [];
@@ -85,20 +87,13 @@ class DatabaseMethods {
             if (userProfile.farm.occupied_crop_slots[i].ready_at - Date.now() > 0) continue; // meaning its not ready to harvest
 
             const foundPlantInstorageIndex = userProfile.storage.products.findIndex((v: any) => v?.name === userProfile.farm.occupied_crop_slots[i].gives);
-            let findItemInDatabase = products.find(v => v?.from === userProfile.farm.occupied_crop_slots[i].name);
-
-            ready.push({
-                name: findItemInDatabase?.name,
-                amount: 1,
-                type: "product"
-            });
+            let findItemInDatabase: any = Object.assign({}, products.find(v => v?.from === userProfile.farm.occupied_crop_slots[i].name));
+            findItemInDatabase.amount = 1;
+            ready.push(findItemInDatabase);
 
             if (foundPlantInstorageIndex === -1) {
-                userProfile.storage.products.push({
-                    name: findItemInDatabase?.name,
-                    amount: 1,
-                    type: "product"
-                });
+                findItemInDatabase.amount = 1;
+                userProfile.storage.products.push(findItemInDatabase);
             } else userProfile.storage.products[foundPlantInstorageIndex].amount += 1;
 
             userProfile.farm.occupied_crop_slots.splice(i, 1);
@@ -145,13 +140,11 @@ class DatabaseMethods {
         await userProfile.save();
     }
 
-    async deployAnimal(userProfile: any, animal: Record<string, string | number>): Promise<void> {
-        userProfile.farm.occupied_animal_slots.push({
-            name: animal.name,
-            gives: animal.gives,
-            ready_time: Number(animal.ready_time),
-            ready_at: Date.now() + Number(animal.ready_time)
-        });
+    async deployAnimal(userProfile: any, animal: Record<string, string | number | string[] | undefined>): Promise<void> {
+        animal.ready_at = Date.now() + Number(animal.ready_time);
+        animal.lifetime = animal.lifetime;
+        delete animal.amount;
+        userProfile.farm.occupied_animal_slots.push(animal);
     }
 
     async undeployAnimal(userProfile: any, slot: number): Promise<void> {
@@ -162,7 +155,7 @@ class DatabaseMethods {
         const harvestAnimalsLength = userProfile.farm.occupied_animal_slots.length;
         let harvestLoopLength = 0;
 
-        if(harvestAnimalsLength > storageLeft) harvestLoopLength = storageLeft;
+        if (harvestAnimalsLength > storageLeft) harvestLoopLength = storageLeft;
         else harvestLoopLength = harvestAnimalsLength;
 
         let ready = [];
@@ -171,19 +164,14 @@ class DatabaseMethods {
 
             const foundProductInStorageIndex = userProfile.storage.products.findIndex((v: any) => v?.name === userProfile.farm.occupied_animal_slots[i].gives);
             let findItemInDatabase = products.find(v => v?.from === userProfile.farm.occupied_animal_slots[i].name);
+            
+            let itemToInsert: any = Object.assign({}, findItemInDatabase);
+            itemToInsert.amount = 1;
 
-            ready.push({
-                name: findItemInDatabase?.name,
-                amount: 1,
-                type: "product"
-            });
+            ready.push(itemToInsert);
 
             if (foundProductInStorageIndex === -1) {
-                userProfile.storage.products.push({
-                    name: findItemInDatabase?.name,
-                    amount: 1,
-                    type: "product"
-                });
+                userProfile.storage.products.push(itemToInsert);
             } else userProfile.storage.products[foundProductInStorageIndex].amount += 1;
 
             // Reset the ready timer and boost instead of removing the animal
@@ -199,6 +187,18 @@ class DatabaseMethods {
         await userProfile.save();
 
         return ready;
+    }
+
+    async checkAndRemoveDeadAnimals(userProfile: any) {
+        let deadAnimals = [];
+        for(let i = userProfile.farm.occupied_animal_slots.length - 1; i >= 0; i--) {
+            if (userProfile.farm.occupied_animal_slots[i].lifetime - Date.now() <= 0) {
+                deadAnimals.push(userProfile.farm.occupied_animal_slots[i].name);
+                await this.undeployAnimal(userProfile, i + 1);
+            }
+        }
+
+        return deadAnimals;
     }
 
     async saveNestedObject(userProfile: any, type: string) {
