@@ -28,13 +28,6 @@
         "sell_price": 110
     },
     {
-        "name": "Honey",
-        "from": "Bee Colony",
-        "level": 5,
-        "xp_gain": 12,
-        "sell_price": 150
-    },
-    {
         "name": "Feathers",
         "from": "Duck",
         "level": 3,
