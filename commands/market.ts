@@ -46,7 +46,7 @@ export async function execute(interaction: CommandInteraction) {
     animals.forEach(animal => {
         marketAnimalsPage.addFields({
             name: animal.name,
-            value: `**Level:** ${animal.level}\n**Price:** ${animal.buy_price} 🪙\n**Ready Time:** ${animal.ready_time / 1000 / 60}mins\n**Produces:** ${animal.gives}`,
+            value: `**Level:** ${animal.level}\n**Price:** ${animal.buy_price} 🪙\n**Ready Time:** ${animal.ready_time / 1000 / 60}mins\n**Produces:** ${animal.gives}\n**Lifetime:** ${animal.lifetime!/1000/60/60}h`,
             inline: true
         });
     });
