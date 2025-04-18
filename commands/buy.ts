@@ -80,7 +80,8 @@ export async function execute(interaction: CommandInteraction) {
 
     try {
         // First update storage
-        await database.addItemTostorage(dbProfile, String(findItemInDatabase?.name), quantity, findItemInDatabase?.type);
+        if(findItemInDatabase.type === "animals") findItemInDatabase.lifetime = Date.now() + Number(findItemInDatabase.lifetime);
+        await database.addItemToStorage(dbProfile, findItemInDatabase, quantity, "market_items");
         // Then update gold
         await database.makePayment(dbProfile, -buyingPrice);
         
@@ -101,6 +102,7 @@ export async function execute(interaction: CommandInteraction) {
             initiatorGoldAfter: updatedProfile.gold
         });
     } catch (error) {
+        console.log(error)
         logError(interaction.client, {
             path: 'buy.ts',
             error,
@@ -110,7 +112,7 @@ export async function execute(interaction: CommandInteraction) {
         return interaction.editReply({ content: "An error occurred while processing your request." });
     }
 
-    return interaction.editReply({ content: `Successfully bought ${quantity} of ${item} for a total price of ${buyingPrice}.` });
+    return interaction.editReply({ content: `Successfully bought **${quantity}** of **${item}** for a total price of **${buyingPrice}**.` });
 }
 
 type ChoicesArray = {
