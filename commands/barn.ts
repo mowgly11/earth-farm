@@ -12,7 +12,7 @@ let imagesObj: Record<string, Image> = {};
 
 productsFiles.forEach(async (file) => {
     const image = await getImage(join(productsDir, file));
-    imagesObj[file.replace(".png", "")] = image;
+    imagesObj[file.replace(".png", "").replace(".jpeg", "")] = image;
 });
 
 export const data = new SlashCommandBuilder()

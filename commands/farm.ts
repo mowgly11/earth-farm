@@ -16,7 +16,7 @@ allDirectories.forEach((dir) => {
     let dirImages = fs.readdirSync(join(assetsPath, dir));
     dirImages.forEach(async (file) => {
         const image = await getImage(join(assetsPath, dir, file));
-        imagesObj[file.replace(".png", "")] = image;
+        imagesObj[file.replace(".png", "").replace(".jpeg", "")] = image;
     });
 });
 
@@ -164,24 +164,9 @@ function stringifySlots(farmDetails: any) {
         else {
             strOfUserData += "\n";
             for (let j = 0; j < val.length; j++) {
-                strOfUserData += `## **Slot ${j + 1}**\n`;
                 let slotType = keys[i] === "occupied_crop_slots" ? "plant" : "animal";
-                let objKeys = Object.keys(val[j]);
-                for (let k = 0; k < objKeys.length; k++) {
-                    // Skip boost-related fields and other fields we don't want to show
-                    if (objKeys[k] === "gives" ||
-                        objKeys[k] === "ready_time" ||
-                        objKeys[k] === "boost_expires_at" ||
-                        objKeys[k] === "total_boost" ||
-                        objKeys[k] === "level" ||
-                        objKeys[k] === "buy_price" ||
-                        objKeys[k] === "sell_price" ||
-                        objKeys[k] === "type" ||
-                        objKeys[k] === "food" // for later feature.
-                    ) continue;
-
-                    strOfUserData += `**${objKeys[k].replace(/_/g, " ")}:** ${objKeys[k] === "ready_at" ? String(((val[j][objKeys[k]] - Date.now()) / 1000) < 0 ? "Ready!" : ((val[j][objKeys[k]] - Date.now()) / 1000).toFixed(0) + 's') : objKeys[k] === "lifetime" ? (val[j][objKeys[k]] - Date.now()) < 0 ? "Deceased" : ((val[j][objKeys[k]] - Date.now()) / 1000 / 60 / 60).toFixed(0) + "h" : val[j][objKeys[k]]}\n`;
-                }
+                
+                strOfUserData += `**Slot ${j+1}:** ${val[j].name} - ${Date.now() - val[j].ready_at > 0 ? 'Ready':((val[j].ready_at-Date.now())/1000).toFixed(0) + 's left'}${val[j]?.lifetime ? ` - ${Date.now() - val[j].lifetime > 0 ? 'Deceased': ((val[j].lifetime-Date.now())/1000/60/60).toFixed(0) + 'h Lifetime' }` :""}\n`;
                 // Add total boost display if it's an animal slot
                 if (slotType === "animal") {
                     const totalBoost = val[j].total_boost || 0;
@@ -189,9 +174,9 @@ function stringifySlots(farmDetails: any) {
 
                     if (totalBoost > 0 && boostExpiresAt) {
                         const timeLeft = Math.max(0, Math.ceil((boostExpiresAt - Date.now()) / 1000 / 60));
-                        strOfUserData += `**Slot ${j + 1} total boost:** ${totalBoost}% (Expires in ${timeLeft} mins)\n`;
+                        strOfUserData += `**total boost:** ${totalBoost}% (Expires in ${timeLeft} mins)\n`;
                     } else {
-                        strOfUserData += `**Slot ${j + 1} total boost:** ${totalBoost}%\n`;
+                        strOfUserData += `**total boost:** ${totalBoost}%\n`;
                     }
                 }
                 strOfUserData += "\n";
