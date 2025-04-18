@@ -144,12 +144,6 @@
                 "sell_price": 400
             },
             {
-                "name": "Bee Colony",
-                "level": 5,
-                "buy_price": 600,
-                "sell_price": 500
-            },
-            {
                 "name": "Duck",
                 "level": 3,
                 "buy_price": 250,
@@ -181,11 +175,6 @@
                 "name": "Truffles",
                 "level": 6,
                 "sell_price": 150
-            },
-            {
-                "name": "Honey",
-                "level": 5,
-                "sell_price": 130
             },
             {
                 "name": "Feathers",
