@@ -80,8 +80,10 @@ export async function execute(interaction: CommandInteraction) {
 
     try {
         // First update storage
-        if(findItemInDatabase.type === "animals") findItemInDatabase.lifetime = Date.now() + Number(findItemInDatabase.lifetime);
-        await database.addItemToStorage(dbProfile, findItemInDatabase, quantity, "market_items");
+        let jsonitem = Object.assign({}, findItemInDatabase);
+        if(jsonitem.type === "animals") jsonitem.lifetime = Date.now() + Number(jsonitem.lifetime);
+        
+        await database.addItemToStorage(dbProfile, jsonitem, quantity, "market_items");
         // Then update gold
         await database.makePayment(dbProfile, -buyingPrice);
         
