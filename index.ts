@@ -43,7 +43,7 @@ client.on("interactionCreate", async (interaction) => {
     const cooldown = Number(cooldowns.get(interaction.user.id));
     if (Date.now() < cooldown) {
       const timeLeft = Math.ceil((cooldown - Date.now()) / 1000);
-      return interaction.reply({ content: `You need to wait **${timeLeft}** seconds before using this command again!`, flags: MessageFlags.Ephemeral });
+      return interaction.reply({ content: `You need to wait **${timeLeft}** seconds before using a command again!`, flags: MessageFlags.Ephemeral });
     }
   }
   
@@ -52,7 +52,7 @@ client.on("interactionCreate", async (interaction) => {
   const { commandName } = interaction;
   if (commands[commandName as keyof typeof commands]) commands[commandName as keyof typeof commands].execute(interaction);
   
-  cooldowns.set(interaction.user.id, Date.now() + 5000); // 5 seconds cooldown
+  cooldowns.set(interaction.user.id, Date.now() + 2000); // 5 seconds cooldown
 });
 
 client.on("messageCreate", (message) => {
