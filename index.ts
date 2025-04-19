@@ -1,4 +1,4 @@
-import { ActivityType, Client, Events, GatewayIntentBits, MessageFlags } from 'discord.js';
+import { ActivityType, Client, Events, GatewayIntentBits, MessageFlags, TextChannel } from 'discord.js';
 import { deployCommands, flushCommands } from './handlers/command.ts';
 import { commands } from './commands';
 import MongooseInit from "./database/connect.ts";
@@ -19,10 +19,10 @@ let i = 0;
 client.on(Events.ClientReady, async readyClient => {
   await deployCommands();
   //await flushCommands();
-
+  
   console.log(`Ready! Logged in as ${readyClient.user.tag}`);
   client.user?.setStatus("idle");
-
+  
   setInterval(() => {
     currentStatus[1] = `${client.guilds.cache.size} servers`;
     client.user?.setActivity(currentStatus[i], { type: ActivityType.Watching });
@@ -31,10 +31,14 @@ client.on(Events.ClientReady, async readyClient => {
   }, 15000);
 });
 
+const commandsLogChannelId = "1363224902269800619"; // Replace with your channel ID
+
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isCommand()) return;
   if (interaction.user.bot) return interaction.reply({ content: "bots are not allowed to use me.", flags: MessageFlags.Ephemeral });
-
+  
+  const commandsLogChannel = await client.channels.fetch(commandsLogChannelId) as TextChannel;
+  
   if (cooldowns.has(interaction.user.id)) {
     const cooldown = Number(cooldowns.get(interaction.user.id));
     if (Date.now() < cooldown) {
@@ -42,16 +46,18 @@ client.on("interactionCreate", async (interaction) => {
       return interaction.reply({ content: `You need to wait **${timeLeft}** seconds before using this command again!`, flags: MessageFlags.Ephemeral });
     }
   }
-
+  
+  commandsLogChannel.send(`\`/${interaction.commandName}\` was used by **${interaction.user.username}** (${interaction.user.id}) in **${interaction.guild?.name ? interaction.guild.name : "DM"}** (${interaction.guild?.id ? interaction.guild.id : "DM"})`);
+  
   const { commandName } = interaction;
   if (commands[commandName as keyof typeof commands]) commands[commandName as keyof typeof commands].execute(interaction);
-
+  
   cooldowns.set(interaction.user.id, Date.now() + 5000); // 5 seconds cooldown
 });
 
 client.on("messageCreate", (message) => {
   if (message.author.id != "632688963093528596") return;
-
+  
   if (message.content.includes("wipe")) {
     userProfileCache.flushAll();
     return message.reply({ content: "done!" });
