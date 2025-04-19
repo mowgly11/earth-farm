@@ -5,6 +5,7 @@ import MongooseInit from "./database/connect.ts";
 import NodeCache from 'node-cache';
 
 const userProfileCache = new NodeCache({ stdTTL: 3600, checkperiod: 120 });
+const cooldowns = new NodeCache({ stdTTL: 3600, checkperiod: 120 });
 
 export { userProfileCache };
 
@@ -34,8 +35,18 @@ client.on("interactionCreate", async (interaction) => {
   if (!interaction.isCommand()) return;
   if (interaction.user.bot) return interaction.reply({ content: "bots are not allowed to use me.", flags: MessageFlags.Ephemeral });
 
+  if (cooldowns.has(interaction.user.id)) {
+    const cooldown = Number(cooldowns.get(interaction.user.id));
+    if (Date.now() < cooldown) {
+      const timeLeft = Math.ceil((cooldown - Date.now()) / 1000);
+      return interaction.reply({ content: `You need to wait **${timeLeft}** seconds before using this command again!`, flags: MessageFlags.Ephemeral });
+    }
+  }
+
   const { commandName } = interaction;
   if (commands[commandName as keyof typeof commands]) commands[commandName as keyof typeof commands].execute(interaction);
+
+  cooldowns.set(interaction.user.id, Date.now() + 5000); // 5 seconds cooldown
 });
 
 client.on("messageCreate", (message) => {
