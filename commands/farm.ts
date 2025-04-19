@@ -1,4 +1,4 @@
-import { CommandInteraction, SlashCommandBuilder, EmbedBuilder, MessageFlags, AttachmentBuilder } from "discord.js";
+import { CommandInteraction, SlashCommandBuilder, MessageFlags, AttachmentBuilder } from "discord.js";
 import database from "../database/methods.ts";
 import { userProfileCache } from "../index.ts";
 import Canvas, { type Image } from "canvas";
