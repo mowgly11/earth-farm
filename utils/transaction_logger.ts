@@ -1,6 +1,6 @@
 import { Client, TextChannel, EmbedBuilder } from "discord.js";
 
-const TRANSACTION_CHANNEL_ID = "1356235686490931260";
+const TRANSACTION_CHANNEL_ID = process.env.TRANSACTION_LOG_CHANNEL_ID!;
 
 const SUSPICIOUS_THRESHOLDS = {
     GOLD_AMOUNT: 10000,     // 10k gold

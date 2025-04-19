@@ -31,7 +31,7 @@ client.on(Events.ClientReady, async readyClient => {
   }, 15000);
 });
 
-const commandsLogChannelId = "1363224902269800619"; // Replace with your channel ID
+const commandsLogChannelId = process.env.COMMANDS_LOG_CHANNEL_ID!; // Replace with your channel ID
 
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isCommand()) return;
@@ -47,7 +47,7 @@ client.on("interactionCreate", async (interaction) => {
     }
   }
   
-  commandsLogChannel.send(`\`/${interaction.commandName}\` was used by **${interaction.user.username}** (${interaction.user.id}) in **${interaction.guild?.name ? interaction.guild.name : "DM"}** (${interaction.guild?.id ? interaction.guild.id : "DM"})`);
+  void commandsLogChannel.send(`\`/${interaction.commandName}\` was used by **${interaction.user.username}** (${interaction.user.id}) in **${interaction.guild?.name ? interaction.guild.name : "DM"}** (${interaction.guild?.id ? interaction.guild.id : "DM"})`).catch(console.error);
   
   const { commandName } = interaction;
   if (commands[commandName as keyof typeof commands]) commands[commandName as keyof typeof commands].execute(interaction);
