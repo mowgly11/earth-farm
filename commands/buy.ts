@@ -47,7 +47,7 @@ export async function execute(interaction: CommandInteraction) {
     // If not in cache, get from database and cache it
     if (!userProfile) {
         const dbProfile = await database.findUser(userId);
-        if (!dbProfile) return interaction.editReply({ content: "Please make a profile using `/farmer` before trying to buy anything from the market." });
+        if (!dbProfile) return await interaction.editReply({ content: "Please make a profile using `/farmer` before trying to buy anything from the market." });
         
         // Cache the plain object
         userProfile = (dbProfile as any).toObject();
@@ -60,14 +60,14 @@ export async function execute(interaction: CommandInteraction) {
     const itemLevel = findItemInDatabase?.level!;
     
     const buyingPrice = itemPrice * quantity;
-    if (userProfile?.level < itemLevel) return interaction.editReply({ content: `you need to be at level ${itemLevel} to be able to buy this item.` });
-    if (buyingPrice > userProfile?.gold) return interaction.editReply({ content: "you don't have enough gold to buy this item" });
+    if (userProfile?.level < itemLevel) return await interaction.editReply({ content: `you need to be at level ${itemLevel} to be able to buy this item.` });
+    if (buyingPrice > userProfile?.gold) return await interaction.editReply({ content: "you don't have enough gold to buy this item" });
     
     let storageCount = 0;
     userProfile.storage.market_items.forEach((v:any) => storageCount += v?.amount ?? 0);
     userProfile.storage.products.forEach((v:any) => storageCount += v?.amount ?? 0);
 
-    if (userProfile.farm.storage_limit - storageCount <= 0 || quantity > userProfile.farm.storage_limit - storageCount) return interaction.editReply({ content: "storage limit exceeded." });
+    if (userProfile.farm.storage_limit - storageCount <= 0 || quantity > userProfile.farm.storage_limit - storageCount) return await interaction.editReply({ content: "storage limit exceeded." });
     
     const goldBefore = userProfile.gold;
 
@@ -75,7 +75,7 @@ export async function execute(interaction: CommandInteraction) {
     const dbProfile = schema.hydrate(userProfile);
     if (!dbProfile) {
         userProfileCache.del(userId);
-        return interaction.editReply({ content: "An error occurred while processing your request." });
+        return await interaction.editReply({ content: "An error occurred while processing your request." });
     }
 
     try {
@@ -111,10 +111,10 @@ export async function execute(interaction: CommandInteraction) {
         });
         // Invalidate cache on error
         userProfileCache.del(userId);
-        return interaction.editReply({ content: "An error occurred while processing your request." });
+        return await interaction.editReply({ content: "An error occurred while processing your request." });
     }
 
-    return interaction.editReply({ content: `Successfully bought **${quantity}** of **${item}** for a total price of **${buyingPrice}**.` });
+    return await interaction.editReply({ content: `Successfully bought **${quantity}** of **${item}** for a total price of **${buyingPrice}**.` });
 }
 
 type ChoicesArray = {

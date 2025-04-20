@@ -25,7 +25,7 @@ export async function execute(interaction: CommandInteraction) {
     // If not in cache, get from database and cache it
     if (!userProfile) {
         const dbProfile = await database.findUser(userId);
-        if (!dbProfile) return interaction.editReply({ content: "Please create a profile first using `/farmer`!" });
+        if (!dbProfile) return await interaction.editReply({ content: "Please create a profile first using `/farmer`!" });
         
         // Cache the plain object
         userProfile = (dbProfile as any).toObject();
@@ -35,11 +35,11 @@ export async function execute(interaction: CommandInteraction) {
     const slotNumber = interaction.options.get("slot")?.value as number;
     
     if (!userProfile.farm.occupied_animal_slots.length) {
-        return interaction.editReply({ content: "You don't have any animals' area to clean!" });
+        return await interaction.editReply({ content: "You don't have any animals' area to clean!" });
     }
 
     if (slotNumber > userProfile.farm.occupied_animal_slots.length) {
-        return interaction.editReply({ content: `Slot **${slotNumber}** doesn't exist! You only have **${userProfile.farm.occupied_animal_slots.length}** animal slots occupied.` });
+        return await interaction.editReply({ content: `Slot **${slotNumber}** doesn't exist! You only have **${userProfile.farm.occupied_animal_slots.length}** animal slots occupied.` });
     }
 
     const now = Date.now();
@@ -48,7 +48,7 @@ export async function execute(interaction: CommandInteraction) {
 
     if (lastCleaned + cooldown > now) {
         const timeLeft = Math.ceil((lastCleaned + cooldown - now) / 1000 / 60);
-        return interaction.editReply({ content: `You need to wait **${timeLeft}** minutes before cleaning again!` });
+        return await interaction.editReply({ content: `You need to wait **${timeLeft}** minutes before cleaning again!` });
     }
 
     const boost = actions.actions.cleaning.boost;
@@ -56,7 +56,7 @@ export async function execute(interaction: CommandInteraction) {
     const timeLeft = animalSlot.ready_at - now;
 
     if (timeLeft <= 0) {
-        return interaction.editReply({ content: `The animal in slot **${slotNumber}** is ready to harvest! No need to clean its area.` });
+        return await interaction.editReply({ content: `The animal in slot **${slotNumber}** is ready to harvest! No need to clean its area.` });
     }
 
     // Update cache immediately
@@ -88,7 +88,7 @@ export async function execute(interaction: CommandInteraction) {
     const dbProfile = schema.hydrate(updatedProfile);
     if (!dbProfile) {
         userProfileCache.del(userId);
-        return interaction.editReply({ content: "An error occurred while processing your request." });
+        return await interaction.editReply({ content: "An error occurred while processing your request." });
     }
 
     try {
@@ -100,8 +100,8 @@ export async function execute(interaction: CommandInteraction) {
             error
         })
         userProfileCache.del(userId);
-        return interaction.editReply({ content: "An error occurred while processing your request." });
+        return await interaction.editReply({ content: "An error occurred while processing your request." });
     }
 
-    return interaction.editReply({ content: `Successfully cleaned area for animal in slot **${slotNumber}**! Production speed increased by **${boost}%** (Total boost: **${animalSlot.total_boost}%**)` });
+    return await interaction.editReply({ content: `Successfully cleaned area for animal in slot **${slotNumber}**! Production speed increased by **${boost}%** (Total boost: **${animalSlot.total_boost}%**)` });
 }

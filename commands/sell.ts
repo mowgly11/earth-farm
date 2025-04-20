@@ -65,10 +65,10 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const name = String(interaction.options.get("name")?.value)?.trim();
     let quantity = interaction.options.get("quantity")?.value;
 
-    if (isNaN(Number(quantity)) && String(quantity).trim().toLowerCase() !== "all") return interaction.editReply({ content: "invalid parameter, you can only use numbers from **1 - 100** or **\"all\"**" });
+    if (isNaN(Number(quantity)) && String(quantity).trim().toLowerCase() !== "all") return await interaction.editReply({ content: "invalid parameter, you can only use numbers from **1 - 100** or **\"all\"**" });
     else if (!isNaN(Number(quantity))) {
         quantity = parseInt(String(quantity));
-        if (quantity > 100 || quantity < 1) return interaction.editReply({ content: "invalid parameter, you can only use numbers from **1 - 100** or **\"all\"**" });
+        if (quantity > 100 || quantity < 1) return await interaction.editReply({ content: "invalid parameter, you can only use numbers from **1 - 100** or **\"all\"**" });
     }
 
     const userId = interaction.user.id;
@@ -80,7 +80,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     if (!userProfile) {
         const dbProfile = await database.findUser(userId);
         if (!dbProfile) {
-            return interaction.editReply({ content: "Please make a profile using `/farmer` before trying to sell anything from the market." });
+            return await interaction.editReply({ content: "Please make a profile using `/farmer` before trying to sell anything from the market." });
         }
 
         // Cache the plain object
@@ -92,21 +92,21 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const dbProfile = schema.hydrate(userProfile);
     if (!dbProfile) {
         userProfileCache.del(userId);
-        return interaction.editReply({ content: "An error occurred while processing your request." });
+        return await interaction.editReply({ content: "An error occurred while processing your request." });
     }
 
     try {
         if (subcommand === "item") {
             if (quantity === "all") {
                 let item = userProfile.storage.market_items.find((v: Record<string, string | number>) => v?.name === name);
-                if (!item) return interaction.editReply({ content: `You can't sell **${name}**. You either don't own it or don't own any of it.` });
+                if (!item) return await interaction.editReply({ content: `You can't sell **${name}**. You either don't own it or don't own any of it.` });
                 quantity = Number(item?.amount);
             }
             quantity = Number(quantity);
 
             // Handle market item selling
             if (!userProfile.storage.market_items.find((v: Record<string, string | number>) => v?.name === name && Number(v?.amount) >= Number(quantity))) {
-                return interaction.editReply({ content: `You can't sell **${name}**. You either don't own it or don't own **${quantity}** of it.` });
+                return await interaction.editReply({ content: `You can't sell **${name}**. You either don't own it or don't own **${quantity}** of it.` });
             }
 
             const findItemInDatabase = marketItems.find(v => v.name === name)!;
@@ -134,18 +134,18 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 initiatorGoldAfter: Number(goldAfter)
             });
 
-            return interaction.editReply({ content: `Successfully sold **${quantity}** of **${name}** for a total price of **${sellingPrice}** 🪙` });
+            return await interaction.editReply({ content: `Successfully sold **${quantity}** of **${name}** for a total price of **${sellingPrice}** 🪙` });
 
         } else if (subcommand === "product") {
             if (quantity === "all") {
                 let item = userProfile.storage.products.find((v: Record<string, string | number>) => v?.name === name);
-                if (!item) return interaction.editReply({ content: `You can't sell **${name}**. You either don't own it or don't own any of it.` });
+                if (!item) return await interaction.editReply({ content: `You can't sell **${name}**. You either don't own it or don't own any of it.` });
                 quantity = Number(item?.amount);
             }
             quantity = Number(quantity);
             // Handle product selling
             if (!userProfile.storage.products.find((v: Record<string, string | number>) => v?.name === name && Number(v?.amount) >= Number(quantity))) {
-                return interaction.editReply({ content: `You can't sell **${name}**. You either don't own it or don't own **${quantity}** of it.` });
+                return await interaction.editReply({ content: `You can't sell **${name}**. You either don't own it or don't own **${quantity}** of it.` });
             }
 
             const findItemInDatabase = products.find(v => v.name === name)!;
@@ -173,7 +173,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 initiatorGoldAfter: Number(goldAfter)
             });
 
-            return interaction.editReply({ content: `Successfully sold **${quantity}** of **${name}** for a total price of **${sellingPrice}** 🪙` });
+            return await interaction.editReply({ content: `Successfully sold **${quantity}** of **${name}** for a total price of **${sellingPrice}** 🪙` });
         }
     } catch (error) {
         logError(interaction.client, {
@@ -181,7 +181,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             error
         });
         userProfileCache.del(userId);
-        return interaction.editReply({ content: "An error occurred while processing your request." });
+        return await interaction.editReply({ content: "An error occurred while processing your request." });
     }
 }
 

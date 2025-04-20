@@ -33,7 +33,7 @@ export async function execute(interaction: CommandInteraction) {
     let user: any = interaction.options.get("farmer")?.user;
     if (!user) user = interaction.user;
 
-    if (user.bot) return interaction.reply({ content: "you can't interact with bots!", flags: MessageFlags.Ephemeral });
+    if (user.bot) return await interaction.reply({ content: "you can't interact with bots!", flags: MessageFlags.Ephemeral });
     await interaction.deferReply();
 
     // Check cache first
@@ -42,7 +42,7 @@ export async function execute(interaction: CommandInteraction) {
     // If not in cache, get from database and cache it
     if (!userProfile) {
         const dbProfile = await database.findUser(user.id);
-        if (!dbProfile) return interaction.editReply({ content: `**${user.username}**'s farm wasn't found.` });
+        if (!dbProfile) return await interaction.editReply({ content: `**${user.username}**'s farm wasn't found.` });
 
         // Cache the plain object
         userProfile = (dbProfile as any).toObject();

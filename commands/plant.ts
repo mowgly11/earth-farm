@@ -46,7 +46,7 @@ export async function execute(interaction: CommandInteraction) {
   // If not in cache, get from database and cache it
   if (!userProfile) {
     const dbProfile = await database.findUser(userId);
-    if (!dbProfile) return interaction.editReply({ content: "Please make a profile using `/farmer` before trying to buy anything from the market." });
+    if (!dbProfile) return await interaction.editReply({ content: "Please make a profile using `/farmer` before trying to buy anything from the market." });
     
     // Cache the plain object
     userProfile = (dbProfile as any).toObject();
@@ -54,13 +54,13 @@ export async function execute(interaction: CommandInteraction) {
   }
 
   if (!userProfile.storage.market_items.find((v: Record<string, string | number>) => v?.name === item && v?.amount >= quantity)
-  ) return interaction.editReply({ content: `you can't plant **${item}**.` });
+  ) return await interaction.editReply({ content: `you can't plant **${item}**.` });
 
   if ((userProfile.farm.available_crop_slots - userProfile.farm.occupied_crop_slots.length) < quantity
-  ) return interaction.editReply({ content: `you can't plant **${item}**, not enough slots to plant this amount.` });
+  ) return await interaction.editReply({ content: `you can't plant **${item}**, not enough slots to plant this amount.` });
 
   if (userProfile.farm.occupied_crop_slots.length >= userProfile.farm.available_crop_slots
-  ) return interaction.editReply({ content: `you can't plant **${item}**, all slots are occupied.` });
+  ) return await interaction.editReply({ content: `you can't plant **${item}**, all slots are occupied.` });
 
   const findItemInDatabase = marketItems.find(v => v.name === item)!;
 
@@ -68,7 +68,7 @@ export async function execute(interaction: CommandInteraction) {
   const dbProfile = schema.hydrate(userProfile);
   if (!dbProfile) {
     userProfileCache.del(userId);
-    return interaction.editReply({ content: "An error occurred while processing your request." });
+    return await interaction.editReply({ content: "An error occurred while processing your request." });
   }
 
   try {
@@ -83,14 +83,14 @@ export async function execute(interaction: CommandInteraction) {
     const updatedProfile = (dbProfile as any).toObject();
     userProfileCache.set(userId, updatedProfile);
 
-    return interaction.editReply({ content: `Successfully planted **${quantity}** of **${findItemInDatabase.name}**. it will be ready in **${findItemInDatabase.ready_time/1000/60}mins**` });
+    return await interaction.editReply({ content: `Successfully planted **${quantity}** of **${findItemInDatabase.name}**. it will be ready in **${findItemInDatabase.ready_time/1000/60}mins**` });
   } catch (error) {
     logError(interaction.client, {
       path: "plant.ts",
       error
     })
     userProfileCache.del(userId);
-    return interaction.editReply({ content: "An error occurred while processing your request." });
+    return await interaction.editReply({ content: "An error occurred while processing your request." });
   }
 }
 

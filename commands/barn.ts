@@ -26,7 +26,7 @@ export const data = new SlashCommandBuilder()
 
 export async function execute(interaction: CommandInteraction) {
     let user = interaction.options.get("farmer")?.user;
-    if (user?.bot) return interaction.reply({ content: "you can't interact with bots!", flags: MessageFlags.Ephemeral });
+    if (user?.bot) return await interaction.reply({ content: "you can't interact with bots!", flags: MessageFlags.Ephemeral });
     if (!user) user = interaction.user;
 
     await interaction.deferReply();
@@ -38,7 +38,7 @@ export async function execute(interaction: CommandInteraction) {
     // If not in cache, get from database and cache it
     if (!userProfile) {
         userProfile = await database.findUser(user.id);
-        if (!userProfile) return interaction.editReply({ content: "user's barn wasn't found." });
+        if (!userProfile) return await interaction.editReply({ content: "user's barn wasn't found." });
 
         // Convert Mongoose document to plain object before caching
         const plainProfile = userProfile.toObject();
@@ -89,7 +89,7 @@ ${formattedStorage}
 Here is a picture of your barn:
 `;
 
-    return interaction.editReply({ content: textMessage, files: [attachment] });
+    return await interaction.editReply({ content: textMessage, files: [attachment] });
 }
 
 function formatstorage(fields: Record<string, Array<Record<string, string | number>>>): Array<UserInfoFields> {

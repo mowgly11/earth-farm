@@ -32,5 +32,5 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         .setTimestamp()
         .setFooter({ text: "Lower numbers are better!" });
 
-    return interaction.editReply({ embeds: [embed] });
+    return await interaction.editReply({ embeds: [embed] });
 } 

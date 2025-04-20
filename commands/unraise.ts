@@ -37,7 +37,7 @@ export async function execute(interaction: CommandInteraction) {
     // If not in cache, get from database and cache it
     if (!userProfile) {
         const dbProfile = await database.findUser(userId);
-        if (!dbProfile) return interaction.editReply({ content: "Please make a profile using `/farmer` before trying to buy anything from the market." });
+        if (!dbProfile) return await interaction.editReply({ content: "Please make a profile using `/farmer` before trying to buy anything from the market." });
         
         // Cache the plain object
         userProfile = (dbProfile as any).toObject();
@@ -45,7 +45,7 @@ export async function execute(interaction: CommandInteraction) {
     }
 
     if (userProfile.farm.occupied_animal_slots[slot-1] == null) 
-        return interaction.editReply({ content: `there are no animals in ${slot} slot.` });
+        return await interaction.editReply({ content: `there are no animals in ${slot} slot.` });
 
     const findItemInDatabase = marketItems.find(v => v.name === userProfile.farm.occupied_animal_slots[slot-1].name)!;
 
@@ -53,7 +53,7 @@ export async function execute(interaction: CommandInteraction) {
     const dbProfile = schema.hydrate(userProfile);
     if (!dbProfile) {
         userProfileCache.del(userId);
-        return interaction.editReply({ content: "An error occurred while processing your request." });
+        return await interaction.editReply({ content: "An error occurred while processing your request." });
     }
 
     try {
@@ -64,14 +64,14 @@ export async function execute(interaction: CommandInteraction) {
         const updatedProfile = (dbProfile as any).toObject();
         userProfileCache.set(userId, updatedProfile);
 
-        return interaction.editReply({ content: `successfully removed **${findItemInDatabase.name}** from the farm.` });
+        return await interaction.editReply({ content: `successfully removed **${findItemInDatabase.name}** from the farm.` });
     } catch (error) {
         logError(interaction.client, {
             path: 'unraise.ts',
             error
         })
         userProfileCache.del(userId);
-        return interaction.editReply({ content: "An error occurred while processing your request." });
+        return await interaction.editReply({ content: "An error occurred while processing your request." });
     }
 }
 

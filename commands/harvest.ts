@@ -19,7 +19,7 @@ export async function execute(interaction: CommandInteraction) {
   // If not in cache, get from database and cache it
   if (!userProfile) {
     const dbProfile = await database.findUser(userId);
-    if (!dbProfile) return interaction.editReply({ content: "Please make a profile using `/farmer` before trying to buy anything from the market." });
+    if (!dbProfile) return await interaction.editReply({ content: "Please make a profile using `/farmer` before trying to buy anything from the market." });
 
     // Cache the plain object
     userProfile = (dbProfile as any).toObject();
@@ -32,13 +32,13 @@ export async function execute(interaction: CommandInteraction) {
 
   let storageLeft = userProfile.farm.storage_limit - storageCount;
 
-  if (storageLeft <= 0) return interaction.editReply({ content: "Storage limit exceeded." });
+  if (storageLeft <= 0) return await interaction.editReply({ content: "Storage limit exceeded." });
 
   // Hydrate the cached profile into a Mongoose document
   const dbProfile = schema.hydrate(userProfile);
   if (!dbProfile) {
     userProfileCache.del(userId);
-    return interaction.editReply({ content: "An error occurred while processing your request." });
+    return await interaction.editReply({ content: "An error occurred while processing your request." });
   }
 
   try {
@@ -75,7 +75,7 @@ export async function execute(interaction: CommandInteraction) {
       error
     });
     userProfileCache.del(userId);
-    return interaction.editReply({ content: "An error occurred while processing your request." });
+    return await interaction.editReply({ content: "An error occurred while processing your request." });
   }
 }
 

@@ -27,7 +27,7 @@ export async function execute(interaction: CommandInteraction) {
   const mentionedUser = interaction.options.get("target")?.user;
   let user: any;
 
-  if (mentionedUser?.bot) return interaction.reply({ content: "you can't interact with bots!", flags: MessageFlags.Ephemeral });
+  if (mentionedUser?.bot) return await interaction.reply({ content: "you can't interact with bots!", flags: MessageFlags.Ephemeral });
 
   await interaction.deferReply();
 
@@ -41,7 +41,7 @@ export async function execute(interaction: CommandInteraction) {
     // If not in cache, get from database and cache it
     if (!userProfile) {
       const dbProfile = await database.findUser(mentionedUser.id);
-      if (!dbProfile) return interaction.editReply({ content: `**${mentionedUser.username}**'s farm wasn't found.` });
+      if (!dbProfile) return await interaction.editReply({ content: `**${mentionedUser.username}**'s farm wasn't found.` });
 
       // Cache the plain object
       userProfile = (dbProfile as any).toObject();
@@ -65,9 +65,9 @@ export async function execute(interaction: CommandInteraction) {
             // Cache the new user
             userProfile = (newUser as any).toObject();
             userProfileCache.set(discordUser.id, userProfile);
-            return interaction.editReply({ content: `Hey there **${interaction.user.username}**! looks like its your first time playing Earth bot. i'll setup everything you'll need through your adventure. Enjoy!` });
+            return await interaction.editReply({ content: `Hey there **${interaction.user.username}**! looks like its your first time playing Earth bot. i'll setup everything you'll need through your adventure. Enjoy!` });
           }
-          return interaction.editReply({ content: "an error occurred" });
+          return await interaction.editReply({ content: "an error occurred" });
         }
 
         // Cache the plain object

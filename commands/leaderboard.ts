@@ -80,13 +80,13 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         }
 
         embed.setDescription(description);
-        return interaction.editReply({ embeds: [embed] });
+        return await interaction.editReply({ embeds: [embed] });
 
     } catch (error) {
         logError(interaction.client, {
             path: "leaderboard.ts",
             error
         })
-        return interaction.editReply({ content: "Failed to fetch leaderboard data. Please try again later." });
+        return await interaction.editReply({ content: "Failed to fetch leaderboard data. Please try again later." });
     }
 }

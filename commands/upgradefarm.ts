@@ -18,7 +18,7 @@ export async function execute(interaction: CommandInteraction) {
     // If not in cache, get from database and cache it
     if (!userProfile) {
         const dbProfile = await database.findUser(userId);
-        if (!dbProfile) return interaction.editReply({ content: "Please make a profile using `/farmer` before trying to buy anything from the market." });
+        if (!dbProfile) return await interaction.editReply({ content: "Please make a profile using `/farmer` before trying to buy anything from the market." });
         
         // Cache the plain object
         userProfile = (dbProfile as any).toObject();
@@ -26,8 +26,8 @@ export async function execute(interaction: CommandInteraction) {
     }
 
     const nextLevelData = farmLevels.find(v => v.level === userProfile.farm.level + 1);
-    if (!nextLevelData) return interaction.reply({ content: "you are at the max level." });
-    if (userProfile.gold < nextLevelData.price) return interaction.reply({ content: `you do not have enough gold to upgrade. the next farm level is priced at **${nextLevelData.price}** 🪙` });
+    if (!nextLevelData) return await interaction.reply({ content: "you are at the max level." });
+    if (userProfile.gold < nextLevelData.price) return await interaction.reply({ content: `you do not have enough gold to upgrade. the next farm level is priced at **${nextLevelData.price}** 🪙` });
 
     const confirmationEmbed = new EmbedBuilder()
         .setTitle(`⚡ Farm Upgrade to Level ${userProfile.farm.level + 1}`)

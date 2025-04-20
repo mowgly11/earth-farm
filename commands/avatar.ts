@@ -22,5 +22,5 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         .setTimestamp()
         .setFooter({ text: `Requested by ${interaction.user.username}` });
 
-    return interaction.editReply({ embeds: [embed] });
+    return await interaction.editReply({ embeds: [embed] });
 }

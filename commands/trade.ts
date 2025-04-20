@@ -84,19 +84,19 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     
     // Validate users
     if (!targetUser) {
-        return interaction.editReply({ content: "Invalid target user!" });
+        return await interaction.editReply({ content: "Invalid target user!" });
     }
 
     if(pendingOffers.has(targetUser.id)) {
-        return interaction.editReply({ content: "This user already has a pending offer, please wait until the offer is done." });
+        return await interaction.editReply({ content: "This user already has a pending offer, please wait until the offer is done." });
     }
 
     if (targetUser.id === interaction.user.id) {
-        return interaction.editReply({ content: "You cannot trade with yourself!" });
+        return await interaction.editReply({ content: "You cannot trade with yourself!" });
     }
 
     if (targetUser.bot) {
-        return interaction.editReply({ content: "You cannot trade with bots!" });
+        return await interaction.editReply({ content: "You cannot trade with bots!" });
     }
 
     // Check cache for both users
@@ -106,14 +106,14 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     // If not in cache, get from database and cache it
     if (!initiatorProfile) {
         const dbProfile = await database.findUser(interaction.user.id);
-        if (!dbProfile) return interaction.editReply({ content: "Both players must have profiles to trade. Use `/farmer` to create one." });
+        if (!dbProfile) return await interaction.editReply({ content: "Both players must have profiles to trade. Use `/farmer` to create one." });
         initiatorProfile = (dbProfile as any).toObject();
         userProfileCache.set(interaction.user.id, initiatorProfile);
     }
 
     if (!targetProfile) {
         const dbProfile = await database.findUser(targetUser.id);
-        if (!dbProfile) return interaction.editReply({ content: "Both players must have profiles to trade. Use `/farmer` to create one." });
+        if (!dbProfile) return await interaction.editReply({ content: "Both players must have profiles to trade. Use `/farmer` to create one." });
         targetProfile = (dbProfile as any).toObject();
         userProfileCache.set(targetUser.id, targetProfile);
     }
@@ -121,13 +121,13 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     // Check if initiator has enough of the offered item
     const initiatorItem = initiatorProfile.storage[offerType as keyof typeof initiatorProfile.storage].find((v: { name: string; amount: number }) => v.name === offerItem);
     if (!initiatorItem || initiatorItem.amount < offerQuantity) {
-        return interaction.editReply({ content: `You don't have enough ${offerItem} to make this trade!` });
+        return await interaction.editReply({ content: `You don't have enough ${offerItem} to make this trade!` });
     }
 
     // Check if target has enough of the requested item
     const targetItem = targetProfile.storage[requestType as keyof typeof targetProfile.storage].find((v: { name: string; amount: number }) => v.name === requestItem);
     if (!targetItem || targetItem.amount < requestQuantity) {
-        return interaction.editReply({ content: `${targetUser?.username} doesn't have enough ${requestItem} for this trade!` });
+        return await interaction.editReply({ content: `${targetUser?.username} doesn't have enough ${requestItem} for this trade!` });
     }
 
     // Calculate current storage usage
@@ -138,14 +138,14 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     // Check if initiator has space for requested items
     if (initiatorCurrentStorage + requestQuantity > initiatorProfile.farm.storage_limit) {
-        return interaction.editReply({
+        return await interaction.editReply({
             content: `You don't have enough storage space to receive ${requestQuantity}x ${requestItem}! Your storage limit is ${initiatorProfile.farm.storage_limit} items.`
         });
     }
 
     // Check if target has space for offered items
     if (targetCurrentStorage + offerQuantity > targetProfile.farm.storage_limit) {
-        return interaction.editReply({
+        return await interaction.editReply({
             content: `${targetUser?.username} doesn't have enough storage space to receive ${offerQuantity}x ${offerItem}! Their storage limit is ${targetProfile.farm.storage_limit} items.`
         });
     }
@@ -153,14 +153,14 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     // Check level requirements
     const requestItemLevel = getItemLevel(requestItem);
     if (initiatorProfile.farm.level < requestItemLevel) {
-        return interaction.editReply({
+        return await interaction.editReply({
             content: `You need to be level ${requestItemLevel} to receive ${requestItem}!`
         });
     }
 
     const offerItemLevel = getItemLevel(offerItem);
     if (targetProfile.farm.level < offerItemLevel) {
-        return interaction.editReply({
+        return await interaction.editReply({
             content: `${targetUser?.username} needs to be level ${offerItemLevel} to receive ${offerItem}!`
         });
     }
