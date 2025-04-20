@@ -16,10 +16,14 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBit
 
 let currentStatus = ["/help", "", "build 0.0.4"];
 let i = 0;
+
+let commandsLogChannel: TextChannel;
+const commandsLogChannelId = process.env.COMMANDS_LOG_CHANNEL_ID!; // Replace with your channel ID
+
 client.on(Events.ClientReady, async readyClient => {
   await deployCommands();
   //await flushCommands();
-
+  commandsLogChannel = await client.channels.fetch(commandsLogChannelId) as TextChannel;
   console.log(`Ready! Logged in as ${readyClient.user.tag}`);
   client.user?.setStatus("idle");
 
@@ -31,13 +35,10 @@ client.on(Events.ClientReady, async readyClient => {
   }, 15000);
 });
 
-const commandsLogChannelId = process.env.COMMANDS_LOG_CHANNEL_ID!; // Replace with your channel ID
 
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isCommand()) return;
   if (interaction.user.bot) return await interaction.reply({ content: "bots are not allowed to use me.", flags: MessageFlags.Ephemeral });
-
-  const commandsLogChannel = await client.channels.fetch(commandsLogChannelId) as TextChannel;
 
   if (cooldowns.has(interaction.user.id)) {
     const cooldown = Number(cooldowns.get(interaction.user.id));
@@ -51,6 +52,8 @@ client.on("interactionCreate", async (interaction) => {
 
   const { commandName } = interaction;
   if (commands[commandName as keyof typeof commands]) await commands[commandName as keyof typeof commands].execute(interaction);
+  else await interaction.reply({ content: "That command doesn't exist.", flags: MessageFlags.Ephemeral });
+  
 
   cooldowns.set(interaction.user.id, Date.now() + 3000); // 3 seconds cooldown
   setTimeout(() => cooldowns.delete(interaction.user.id), 3000);
