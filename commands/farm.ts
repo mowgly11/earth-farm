@@ -123,7 +123,7 @@ export async function execute(interaction: CommandInteraction) {
 
     const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: "farm.png" });
 
-    await interaction.editReply({ content: stringifySlots(userProfile.farm) + "Here is a picture of " + interaction.user.username + " farm", files: [attachment] });
+    await interaction.editReply({ content: stringifySlots(userProfile.farm) + "Here is a picture of " + user.username + " farm", files: [attachment] });
 }
 
 function stringifySlots(farmDetails: any) {
