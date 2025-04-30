@@ -4,182 +4,206 @@
             {
                 "name": "Wheat Seeds",
                 "level": 1,
-                "buy_price": 5,
-                "sell_price": 3,
-                "harvest_value": 10
+                "buy_price": 8,
+                "sell_price": 5,
+                "harvest_value": 12
             },
             {
                 "name": "Corn Seeds",
                 "level": 1,
-                "buy_price": 10,
-                "sell_price": 7,
-                "harvest_value": 18
+                "buy_price": 15,
+                "sell_price": 10,
+                "harvest_value": 22
             },
             {
                 "name": "Carrot Seeds",
                 "level": 2,
-                "buy_price": 15,
-                "sell_price": 10,
-                "harvest_value": 25
+                "buy_price": 22,
+                "sell_price": 16,
+                "harvest_value": 32
             },
             {
                 "name": "Pumpkin Seeds",
                 "level": 2,
-                "buy_price": 25,
-                "sell_price": 18,
-                "harvest_value": 40
+                "buy_price": 40,
+                "sell_price": 30,
+                "harvest_value": 50
             },
             {
                 "name": "Strawberry Seeds",
                 "level": 3,
-                "buy_price": 35,
-                "sell_price": 28,
-                "harvest_value": 55
+                "buy_price": 50,
+                "sell_price": 38,
+                "harvest_value": 65
             },
             {
                 "name": "Blueberry Seeds",
                 "level": 4,
-                "buy_price": 50,
-                "sell_price": 40,
-                "harvest_value": 80
+                "buy_price": 70,
+                "sell_price": 55,
+                "harvest_value": 90
             },
             {
-                "name": "Coffee Beans",
+                "name": "Coffee Seeds",
                 "level": 5,
-                "buy_price": 100,
-                "sell_price": 80,
-                "harvest_value": 150
+                "buy_price": 150,
+                "sell_price": 110,
+                "harvest_value": 180
             },
             {
                 "name": "Tomato Seeds",
                 "level": 3,
-                "buy_price": 45,
-                "sell_price": 38,
-                "harvest_value": 70
+                "buy_price": 60,
+                "sell_price": 45,
+                "harvest_value": 85
             },
             {
                 "name": "Potato Seeds",
                 "level": 2,
-                "buy_price": 30,
-                "sell_price": 22,
-                "harvest_value": 50
+                "buy_price": 45,
+                "sell_price": 35,
+                "harvest_value": 60
+            },
+            {
+                "name": "Onion Seeds",
+                "level": 3,
+                "buy_price": 55,
+                "sell_price": 41,
+                "harvest_value": 75
+            },
+            {
+                "name": "Watermelon Seeds",
+                "level": 2,
+                "buy_price": 27,
+                "sell_price": 19,
+                "harvest_value": 40
             }
         ],
         "crops": [
             {
                 "name": "Wheat",
                 "level": 1,
-                "sell_price": 10
+                "sell_price": 12
             },
             {
                 "name": "Corn",
                 "level": 1,
-                "sell_price": 18
+                "sell_price": 22
             },
             {
                 "name": "Carrot",
                 "level": 2,
-                "sell_price": 25
+                "sell_price": 32
             },
             {
-                "name": "Pumpkin",
+                "name": "Watermelon",
                 "level": 2,
                 "sell_price": 40
             },
             {
+                "name": "Onion",
+                "level": 3,
+                "sell_price": 75
+            },
+            {
+                "name": "Pumpkin",
+                "level": 2,
+                "sell_price": 50
+            },
+            {
                 "name": "Strawberry",
                 "level": 3,
-                "sell_price": 55
+                "sell_price": 65
             },
             {
                 "name": "Blueberry",
                 "level": 4,
-                "sell_price": 80
+                "sell_price": 90
             },
             {
                 "name": "Coffee Beans",
                 "level": 5,
-                "sell_price": 150
+                "sell_price": 180
             },
             {
                 "name": "Tomato",
                 "level": 3,
-                "sell_price": 70
+                "sell_price": 85
             },
             {
                 "name": "Potato",
                 "level": 2,
-                "sell_price": 50
+                "sell_price": 60
             }
         ],
         "animals": [
             {
                 "name": "Chicken",
                 "level": 1,
-                "buy_price": 50,
-                "sell_price": 30
+                "buy_price": 75,
+                "sell_price": 40
             },
             {
                 "name": "Cow",
                 "level": 1,
-                "buy_price": 150,
-                "sell_price": 100
+                "buy_price": 250,
+                "sell_price": 175
             },
             {
                 "name": "Sheep",
                 "level": 3,
-                "buy_price": 200,
-                "sell_price": 140
-            },
-            {
-                "name": "Goat",
-                "level": 4,
                 "buy_price": 300,
                 "sell_price": 220
             },
             {
+                "name": "Goat",
+                "level": 4,
+                "buy_price": 450,
+                "sell_price": 320
+            },
+            {
                 "name": "Pig",
-                "level": 6,
-                "buy_price": 500,
-                "sell_price": 400
+                "level": 2,
+                "buy_price": 280,
+                "sell_price": 210
             },
             {
                 "name": "Duck",
                 "level": 3,
-                "buy_price": 250,
-                "sell_price": 200
+                "buy_price": 350,
+                "sell_price": 280
             }
         ],
         "animal_products": [
             {
                 "name": "Eggs",
                 "level": 1,
-                "sell_price": 15
+                "sell_price": 20
             },
             {
                 "name": "Milk",
                 "level": 1,
-                "sell_price": 50
+                "sell_price": 60
             },
             {
                 "name": "Wool",
                 "level": 3,
-                "sell_price": 70
+                "sell_price": 90
             },
             {
                 "name": "Cheese",
                 "level": 4,
-                "sell_price": 90
+                "sell_price": 110
             },
             {
                 "name": "Truffles",
-                "level": 6,
-                "sell_price": 150
+                "level": 2,
+                "sell_price": 70
             },
             {
                 "name": "Feathers",
                 "level": 3,
-                "sell_price": 45
+                "sell_price": 55
             }
         ],
         "upgrades": [

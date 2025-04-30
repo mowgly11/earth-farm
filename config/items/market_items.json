@@ -6,9 +6,7 @@
         "buy_price": 75,
         "sell_price": 40,
         "ready_time": 180000,
-        "food": [
-            "Corn"
-        ],
+        "food": ["Corn"],
         "type": "animals",
         "lifetime": 86400000
     },
@@ -19,9 +17,7 @@
         "buy_price": 250,
         "sell_price": 175,
         "ready_time": 300000,
-        "food": [
-            "Wheat"
-        ],
+        "food": ["Wheat"],
         "type": "animals",
         "lifetime": 172800000
     },
@@ -32,24 +28,9 @@
         "buy_price": 300,
         "sell_price": 220,
         "ready_time": 420000,
-        "food": [
-            "Wheat"
-        ],
+        "food": ["Wheat"],
         "type": "animals",
         "lifetime": 172800000
-    },
-    {
-        "name": "Goat",
-        "gives": "Cheese",
-        "level": 4,
-        "buy_price": 450,
-        "sell_price": 320,
-        "ready_time": 480000,
-        "food": [
-            "Corn"
-        ],
-        "type": "animals",
-        "lifetime": 216000000
     },
     {
         "name": "Duck",
@@ -58,11 +39,31 @@
         "buy_price": 350,
         "sell_price": 280,
         "ready_time": 240000,
-        "food": [
-            "Corn"
-        ],
+        "food": ["Corn"],
         "type": "animals",
         "lifetime": 129600000
+    },
+    {
+        "name": "Goat",
+        "gives": "Cheese",
+        "level": 4,
+        "buy_price": 450,
+        "sell_price": 320,
+        "ready_time": 480000,
+        "food": ["Corn"],
+        "type": "animals",
+        "lifetime": 216000000
+    },
+    {
+        "name": "Pig",
+        "gives": "Truffles",
+        "level": 2,
+        "buy_price": 280,
+        "sell_price": 210,
+        "ready_time": 540000,
+        "food": ["Carrot", "Wheat"],
+        "type": "animals",
+        "lifetime": 172800000
     },
     {
         "name": "Wheat Seeds",
@@ -80,6 +81,15 @@
         "buy_price": 15,
         "sell_price": 10,
         "ready_time": 240000,
+        "type": "seeds"
+    },
+    {
+        "name": "Potato Seeds",
+        "gives": "Potato",
+        "level": 2,
+        "buy_price": 45,
+        "sell_price": 35,
+        "ready_time": 1800000,
         "type": "seeds"
     },
     {
@@ -101,6 +111,15 @@
         "type": "seeds"
     },
     {
+        "name": "Watermelon Seeds",
+        "gives": "Watermelon",
+        "level": 2,
+        "buy_price": 27,
+        "sell_price": 19,
+        "ready_time": 500000,
+        "type": "seeds"
+    },
+    {
         "name": "Strawberry Seeds",
         "gives": "Strawberry",
         "level": 3,
@@ -110,21 +129,12 @@
         "type": "seeds"
     },
     {
-        "name": "Blueberry Seeds",
-        "gives": "Blueberry",
-        "level": 4,
-        "buy_price": 70,
-        "sell_price": 55,
-        "ready_time": 1200000,
-        "type": "seeds"
-    },
-    {
-        "name": "Coffee Seeds",
-        "gives": "Coffee Beans",
-        "level": 5,
-        "buy_price": 150,
-        "sell_price": 110,
-        "ready_time": 2400000,
+        "name": "Onion Seeds",
+        "gives": "Onion",
+        "level": 3,
+        "buy_price": 55,
+        "sell_price": 41,
+        "ready_time": 1100000,
         "type": "seeds"
     },
     {
@@ -137,12 +147,21 @@
         "type": "seeds"
     },
     {
-        "name": "Potato Seeds",
-        "gives": "Potato",
-        "level": 2,
-        "buy_price": 45,
-        "sell_price": 35,
-        "ready_time": 1800000,
+        "name": "Blueberry Seeds",
+        "gives": "Blueberry",
+        "level": 4,
+        "buy_price": 70,
+        "sell_price": 65,
+        "ready_time": 1200000,
+        "type": "seeds"
+    },
+    {
+        "name": "Coffee Seeds",
+        "gives": "Coffee Beans",
+        "level": 5,
+        "buy_price": 150,
+        "sell_price": 125,
+        "ready_time": 2400000,
         "type": "seeds"
     }
 ]
