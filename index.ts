@@ -10,7 +10,7 @@ const cooldowns = new Map();
 export { userProfileCache };
 
 const databaseConnection = new MongooseInit(process.env.mongo_connection!);
-databaseConnection.connect();
+await databaseConnection.connect();
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages], allowedMentions: { repliedUser: false } });
 
@@ -54,7 +54,6 @@ client.on("interactionCreate", async (interaction) => {
   if (commands[commandName as keyof typeof commands]) await commands[commandName as keyof typeof commands].execute(interaction);
   else await interaction.reply({ content: "That command doesn't exist.", flags: MessageFlags.Ephemeral });
   
-
   cooldowns.set(interaction.user.id, Date.now() + 3000); // 3 seconds cooldown
   setTimeout(() => cooldowns.delete(interaction.user.id), 3000);
 });
@@ -66,6 +65,6 @@ client.on("messageCreate", (message) => {
     userProfileCache.flushAll();
     return message.reply({ content: "done!" });
   }
-})
+});
 
 client.login(process.env.token!);
