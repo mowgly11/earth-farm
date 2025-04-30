@@ -51,21 +51,22 @@ export async function execute(interaction: CommandInteraction) {
 
     ctx.drawImage(imagesObj['barn_interior_base'], 0, 0, canvas.width, canvas.height);
 
-    let lastDrawnCropXandY = [55, 105]; // X - Y
+    let dimensions = getDimensions(userProfile.storage.products.length);
+
+    let lastDrawnCropXandY = [dimensions.startXAxis, dimensions.startYAxis]; // X - Y
 
     if (userProfile.storage.products.length > 0) {
         for (let i = 0; i < userProfile.storage.products.length; i++) {
             const product = userProfile.storage.products[i];
             const productImage = imagesObj[`${product.name.split(" ").join("").toLowerCase()}_bag`];
 
-            
-            if (i > 0 && i % 5 === 0) {
-                lastDrawnCropXandY[0] = 55;
-                lastDrawnCropXandY[1] += 40;
+            if (i > 0 && i % dimensions.prodsPerShelf === 0) {
+                lastDrawnCropXandY[0] = dimensions.startXAxis;
+                lastDrawnCropXandY[1] += dimensions.additionYAxis;
             }
-            
-            ctx.drawImage(productImage, lastDrawnCropXandY[0], lastDrawnCropXandY[1], 27, 30);
-            lastDrawnCropXandY[0] += 40;
+
+            ctx.drawImage(productImage, lastDrawnCropXandY[0], lastDrawnCropXandY[1], dimensions.imageWidth, dimensions.imageHeight);
+            lastDrawnCropXandY[0] += dimensions.additionXAxis;
         }
     }
 
@@ -92,6 +93,33 @@ Here is a picture of your barn:
     return await interaction.editReply({ content: textMessage, files: [attachment] });
 }
 
+function getDimensions(productsCount: number): Dimensions {
+    let dimensions: Dimensions = {
+        imageWidth: 27,
+        imageHeight: 30,
+        startXAxis: 55,
+        startYAxis: 105,
+        additionXAxis: 40,
+        additionYAxis: 40,
+        prodsPerShelf: 5
+    };
+
+    if(productsCount > 15) {
+        let diffWidth = 100 * 15 / productsCount + 1;
+        let diffHeight = 100 * 15 / productsCount + 1;
+        
+        dimensions.imageWidth *= (diffWidth * Math.pow(10,-2));
+        dimensions.imageHeight *= (diffHeight * Math.pow(10,-2));
+
+        dimensions.additionXAxis *= (diffWidth * .9 * Math.pow(10,-2));
+        dimensions.additionYAxis *= (diffHeight * 1.2 * Math.pow(10,-2));
+
+        dimensions.prodsPerShelf = Math.ceil(productsCount / 3);
+    }
+
+    return dimensions;
+}
+
 function formatstorage(fields: Record<string, Array<Record<string, string | number>>>): Array<UserInfoFields> {
     let finalArray: Array<UserInfoFields> = [];
 
@@ -113,4 +141,15 @@ type UserInfoFields = {
     name: string;
     value: string;
     inline?: boolean;
+}
+
+
+type Dimensions = {
+    imageWidth: number,
+    imageHeight: number,
+    startXAxis: number,
+    startYAxis: number,
+    additionXAxis: number,
+    additionYAxis: number,
+    prodsPerShelf: number
 }
