@@ -85,8 +85,9 @@ export async function execute(interaction: CommandInteraction) {
         for (let i = 0; i < farmProperties.crops.length; i++) {
             const crop = farmProperties.crops[i];
             let cropImg: Image;
-            if (Date.now() > crop.ready_at) cropImg = imagesObj[`full_${crop.name.toLowerCase()}`];
-            else cropImg = imagesObj[`started_${crop.name.toLowerCase()}`];
+
+            if (Date.now() > crop.ready_at) cropImg = imagesObj[`full_${crop.name.toLowerCase().replace(" ", "")}`];
+            else cropImg = imagesObj[`started_${crop.name.toLowerCase().replace(" ", "")}`];
 
             let cropX = lastDrawnCropXandY[0];
             let cropY = lastDrawnCropXandY[1];
@@ -165,8 +166,8 @@ function stringifySlots(farmDetails: any) {
             strOfUserData += "\n";
             for (let j = 0; j < val.length; j++) {
                 let slotType = keys[i] === "occupied_crop_slots" ? "plant" : "animal";
-                
-                strOfUserData += `**Slot ${j+1}:** ${val[j].name} - ${Date.now() - val[j].ready_at > 0 ? 'Ready':((val[j].ready_at-Date.now())/1000).toFixed(0) + 's left'}${val[j]?.lifetime ? ` - ${Date.now() - val[j].lifetime > 0 ? 'Deceased': ((val[j].lifetime-Date.now())/1000/60/60).toFixed(0) + 'h Lifetime' }` :""}\n`;
+
+                strOfUserData += `**Slot ${j + 1}:** ${val[j].name} - ${Date.now() - val[j].ready_at > 0 ? 'Ready' : ((val[j].ready_at - Date.now()) / 1000).toFixed(0) + 's left'}${val[j]?.lifetime ? ` - ${Date.now() - val[j].lifetime > 0 ? 'Deceased' : ((val[j].lifetime - Date.now()) / 1000 / 60 / 60).toFixed(0) + 'h Lifetime'}` : ""}\n`;
                 // Add total boost display if it's an animal slot
                 if (slotType === "animal") {
                     const totalBoost = val[j].total_boost || 0;
