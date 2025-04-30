@@ -83,7 +83,7 @@ export async function execute(interaction: CommandInteraction) {
     const updatedProfile = (dbProfile as any).toObject();
     userProfileCache.set(userId, updatedProfile);
 
-    return await interaction.editReply({ content: `Successfully planted **${quantity}** of **${findItemInDatabase.name}**. it will be ready in **${findItemInDatabase.ready_time/1000/60}mins**` });
+    return await interaction.editReply({ content: `Successfully planted **${quantity}** of **${findItemInDatabase.name}**. it will be ready in **${(findItemInDatabase.ready_time/1000/60).toFixed(0)}mins**` });
   } catch (error) {
     logError(interaction.client, {
       path: "plant.ts",
