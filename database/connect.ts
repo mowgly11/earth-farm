@@ -15,12 +15,12 @@ class MongooseInit {
         this.connectionUrl = value;
     }
 
-    connect() {
-        mongoose.connect(this.getConnectUrl());
-        
+    async connect() {
         mongoose.connection.on('connected', () => console.log('Connected to Mongoose'));
         mongoose.connection.on('disconnected', () => console.log('Disconnected to Mongoose'));
         mongoose.connection.on('error', (error) => console.log('Connection Error: ' + error));
+        
+        await mongoose.connect(this.getConnectUrl());
     }
 }
 
