@@ -46,7 +46,7 @@ export async function execute(interaction: CommandInteraction) {
     animals.forEach(animal => {
         marketAnimalsPage.addFields({
             name: animal.name,
-            value: `**Level:** ${animal.level}\n**Price:** ${animal.buy_price} 🪙\n**Ready Time:** ${animal.ready_time / 1000 / 60}mins\n**Produces:** ${animal.gives}\n**Lifetime:** ${animal.lifetime!/1000/60/60}h`,
+            value: `**Level:** ${animal.level}\n**Price:** ${animal.buy_price} 🪙\n**Ready Time:** ${(animal.ready_time / 1000 / 60).toFixed(0)}mins\n**Produces:** ${animal.gives}\n**Lifetime:** ${animal.lifetime!/1000/60/60}h`,
             inline: true
         });
     });
@@ -55,7 +55,7 @@ export async function execute(interaction: CommandInteraction) {
     seeds.forEach(seed => {
         marketSeedsPage.addFields({
             name: seed.name,
-            value: `**Level:** ${seed.level}\n**Price:** ${seed.buy_price} 🪙\n**Ready Time:** ${seed.ready_time / 1000 / 60}mins\n**Produces:** ${seed.gives}`,
+            value: `**Level:** ${seed.level}\n**Price:** ${seed.buy_price} 🪙\n**Ready Time:** ${(seed.ready_time / 1000 / 60).toFixed(0)}mins\n**Produces:** ${seed.gives}`,
             inline: true
         });
     });
