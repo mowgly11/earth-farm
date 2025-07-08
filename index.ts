@@ -59,7 +59,7 @@ client.on("interactionCreate", async (interaction) => {
 });
 
 client.on("messageCreate", (message) => {
-  if (message.author.id != "632688963093528596") return;
+  if (message.author.id != process.env.ADMIN_USER_ID!) return;
 
   if (message.content.includes("wipe")) {
     userProfileCache.flushAll();
