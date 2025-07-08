@@ -76,8 +76,11 @@ A feature-rich Discord bot that brings farming simulation to your Discord server
    token=
    clientId=
    mongo_connection=
+   GUILD_ID=
    COMMANDS_LOG_CHANNEL_ID=
    TRANSACTION_LOG_CHANNEL_ID=
+   ERROR_LOG_CHANNEL_ID=
+   ADMIN_USER_ID=
    ```
 4. **Database Setup**
    Ensure your MongoDB instance is running and accessible with the provided connection string.
@@ -177,8 +180,13 @@ src/
 ### Environment Variables
 
 - `token` - Discord bot token from Discord Developer Portal
+- `clientId` - Discord application client ID
 - `mongo_connection` - MongoDB connection string
+- `GUILD_ID` - Discord server ID where commands are deployed
 - `COMMANDS_LOG_CHANNEL_ID` - Discord channel ID for command logging
+- `TRANSACTION_LOG_CHANNEL_ID` - Discord channel ID for transaction logging
+- `ERROR_LOG_CHANNEL_ID` - Discord channel ID for error logging
+- `ADMIN_USER_ID` - Discord user ID with admin privileges
 
 ### Bot Permissions
 
