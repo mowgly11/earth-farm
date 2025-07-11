@@ -216,7 +216,6 @@ Ensure your bot has the following Discord permissions:
 
 ## 📋 Requirements
 
-- Node.js 18+
 - Bun runtime
 - MongoDB 4.4+
 - Discord Bot Token
@@ -229,7 +228,6 @@ Ensure your bot has the following Discord permissions:
 - **Bot not responding**: Check if the bot token is valid and the bot is online
 - **Database errors**: Verify MongoDB connection string and database accessibility
 - **Command registration**: Ensure proper permissions and bot is in the server
-- **Memory issues**: Monitor cache usage and clear when necessary
 
 ### Support
 
