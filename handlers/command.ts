@@ -10,7 +10,7 @@ export async function deployCommands() {
     try {
         console.log(`Started refreshing ${commandsData.length} application (/) commands.`);
         await rest.put(
-            Routes.applicationGuildCommands(String(process.env.clientId!), process.env.GUILD_ID!),
+            Routes.applicationCommands(String(process.env.clientId!)),
             { body: commandsData },
         );
         console.log(`Successfully reloaded ${commandsData.length} application (/) commands.`);
@@ -22,7 +22,7 @@ export async function deployCommands() {
 export async function flushCommands() {
     try {
         console.log('Started deleting all application (/) commands.');
-        await rest.put(Routes.applicationGuildCommands(String(process.env.clientId!), process.env.GUILD_ID!), { body: [] })
+        await rest.put(Routes.applicationCommands(String(process.env.clientId!)), { body: [] })
             .then(() => console.log('Successfully deleted all application commands.'))
             .catch(console.error);
     } catch (error) {
