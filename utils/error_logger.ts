@@ -1,7 +1,7 @@
 import { Client, EmbedBuilder, TextChannel } from "discord.js";
 const ERROR_CHANNEL_ID = process.env.ERROR_LOG_CHANNEL_ID!;
 
-export default async function logError(client: Client, error: any, context?: string) {
+export async function logError(client: Client, error: any, context?: string) {
     try {
         const errorChannel = await client.channels.fetch(ERROR_CHANNEL_ID) as TextChannel;
         
