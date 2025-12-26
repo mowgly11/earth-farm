@@ -1,9 +1,13 @@
-import { CommandInteraction, SlashCommandBuilder, MessageFlags } from "discord.js";
+import { CommandInteraction, SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ActionRowBuilder } from "discord.js";
 import marketItems from "../config/items/market_items.json";
 import database from "../database/methods.ts";
 import { userProfileCache } from "../index.ts";
 import schema from "../database/schema.ts";
 import { logError } from "../utils/error_logger.ts";
+import { ERRORS, COLORS } from "../utils/constants.ts";
+import { createNoProfileEmbed } from "../utils/onboarding.ts";
+import { BUTTONS } from "../utils/buttons.ts";
+import { relativeTimestamp } from "../utils/ux.ts";
 
 let choices: Array<ChoicesArray> = [];
 marketItems.map(option => {
@@ -15,11 +19,11 @@ marketItems.map(option => {
 
 export const data = new SlashCommandBuilder()
     .setName("raise")
-    .setDescription("raise an animal to start producing.")
+    .setDescription("Raise an animal to start producing!")
     .addStringOption(option =>
         option
             .setName("animal")
-            .setDescription("the animal you're trying to raise")
+            .setDescription("The animal you want to raise")
             .setRequired(true)
             .addChoices(...choices)
     )
@@ -30,51 +34,107 @@ export async function execute(interaction: CommandInteraction) {
     const animal: string = String(interaction.options.get("animal")?.value)?.trim();
     const userId = interaction.user.id;
 
-    // Check cache first
-    let userProfile: any = userProfileCache.get(userId);
-    
-    // If not in cache, get from database and cache it
-    if (!userProfile) {
+      let userProfile: any = userProfileCache.get(userId);
+
+      if (!userProfile) {
         const dbProfile = await database.findUser(userId);
-        if (!dbProfile) return await interaction.editReply({ content: "Please make a profile using `/farmer` before trying to buy anything from the market." });
-        
-        // Cache the plain object
+        if (!dbProfile) return await interaction.editReply(createNoProfileEmbed(interaction.user.id));
+
         userProfile = (dbProfile as any).toObject();
         userProfileCache.set(userId, userProfile);
     }
 
-    if (!userProfile.storage.market_items.find((v: Record<string, string | number>) => v?.name === animal)
-    ) return await interaction.editReply({ content: `you can't raise **${animal}** as you don't own it.` });
+    // Check if user has the animal
+    const animalInStorage = userProfile.storage.market_items.find((v: Record<string, string | number>) => v?.name === animal);
+    if (!animalInStorage) {
+        const embed = new EmbedBuilder()
+            .setTitle("❌ No Animal in Storage")
+            .setColor(COLORS.ERROR)
+            .setDescription(`You don't have any **${animal}** in storage.`);
 
-    if (userProfile.farm.occupied_animal_slots.length >= userProfile.farm.available_animal_slots) 
-        return await interaction.editReply({ content: `you can't raise **${animal}**, all slots are occupied.` });
+        const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
+            BUTTONS.marketBuy(),
+            BUTTONS.dashboard()
+        );
+
+        return await interaction.editReply({ embeds: [embed], components: [buttons] });
+    }
+
+    // Check available slots
+    if (userProfile.farm.occupied_animal_slots.length >= userProfile.farm.available_animal_slots) {
+        const embed = new EmbedBuilder()
+            .setTitle("❌ No Animal Slots")
+            .setColor(COLORS.ERROR)
+            .setDescription(`All **${userProfile.farm.available_animal_slots}** animal slots are occupied.`)
+            .addFields(
+                { name: "🐔 Occupied", value: `${userProfile.farm.occupied_animal_slots.length}`, inline: true },
+                { name: "📊 Total", value: `${userProfile.farm.available_animal_slots}`, inline: true }
+            );
+
+        const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
+            BUTTONS.unraise(),
+            BUTTONS.upgradeFarm().setStyle(3) // SUCCESS
+        );
+
+        return await interaction.editReply({ embeds: [embed], components: [buttons] });
+    }
 
     const jsonitem = userProfile.storage.market_items.find((v: any) => v.name === animal)!;
+    const animalInfo = marketItems.find(m => m.name === animal);
 
     // Hydrate the cached profile into a Mongoose document
     const dbProfile = schema.hydrate(userProfile);
     if (!dbProfile) {
         userProfileCache.del(userId);
-        return await interaction.editReply({ content: "An error occurred while processing your request." });
+        return await interaction.editReply({ content: ERRORS.GENERIC });
     }
 
     try {
         await database.removeItemFromstorage(dbProfile, animal, 1, "market_items");
-        await database.deployAnimal(dbProfile, Object.assign({}, jsonitem));
+        await database.deployAnimal(dbProfile, JSON.parse(JSON.stringify(jsonitem)));
         await database.saveNestedObject(dbProfile, "farm");
 
         // Update cache with latest data
         const updatedProfile = (dbProfile as any).toObject();
         userProfileCache.set(userId, updatedProfile);
 
-        return await interaction.editReply({ content: `successfully raised **${animal}**, it will produce goods every **${jsonitem.ready_time/1000/60}mins**` });
+        // Calculate ready time
+        const readyAt = Date.now() + (jsonitem.ready_time || 0);
+        const readyMins = Math.round((jsonitem.ready_time || 0) / 1000 / 60);
+
+        // Success embed
+        const embed = new EmbedBuilder()
+            .setTitle("🐔 Animal Raised!")
+            .setColor(COLORS.SUCCESS)
+            .setDescription(`Successfully raised **${animal}** in your barn!`)
+            .addFields(
+                { name: "⏱️ Produces Every", value: `${readyMins} minutes`, inline: true },
+                { name: "🕐 First Product", value: relativeTimestamp(readyAt), inline: true },
+                { name: "🎁 Produces", value: animalInfo?.gives || "Products", inline: true }
+            )
+            .addFields(
+                { name: "🐔 Barn Slots", value: `${updatedProfile.farm.occupied_animal_slots.length}/${updatedProfile.farm.available_animal_slots}`, inline: true },
+                { name: "📦 Remaining", value: `${(animalInStorage.amount || 1) - 1}x in storage`, inline: true }
+            )
+            .setFooter({ text: "Feed, pet, and clean your animals for bonus production!" })
+            .setTimestamp();
+
+        // Follow-up buttons
+        const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
+            BUTTONS.viewBarn(),
+            BUTTONS.feed(),
+            BUTTONS.dashboard()
+        );
+
+        return await interaction.editReply({ embeds: [embed], components: [buttons] });
+
     } catch (error) {
         logError(interaction.client, {
             path: 'raise.ts',
             error
-        })
+        });
         userProfileCache.del(userId);
-        return await interaction.editReply({ content: "An error occurred while processing your request." });
+        return await interaction.editReply({ content: ERRORS.GENERIC });
     }
 }
 

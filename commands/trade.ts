@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, ActionRowBuilder, ComponentType } from "discord.js";
+import { ChatInputCommandInteraction, SlashCommandBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, ActionRowBuilder, ComponentType, MessageFlags } from "discord.js";
 import database from "../database/methods.ts";
 import marketItems from "../config/items/market_items.json";
 import products from "../config/items/products.json";
@@ -7,6 +7,8 @@ import { logTransaction } from "../utils/transaction_logger.ts";
 import { userProfileCache } from "../index.ts";
 import schema from "../database/schema.ts";
 import { logError } from "../utils/error_logger.ts";
+import { COLORS } from "../utils/constants.ts";
+import { CONFIRM_BUTTONS } from "../utils/buttons.ts";
 
 type MarketCategory = 'seeds' | 'animals' | 'crops' | 'animal_products' | 'upgrades';
 
@@ -77,17 +79,17 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const requestItemFull = String(interaction.options.get("request_item")?.value);
     const requestQuantity = Number(interaction.options.get("request_quantity")?.value);
 
-    
+
     // Split the item strings into type and name
     const [offerType, offerItem] = offerItemFull.split(":");
     const [requestType, requestItem] = requestItemFull.split(":");
-    
+
     // Validate users
     if (!targetUser) {
         return await interaction.editReply({ content: "Invalid target user!" });
     }
 
-    if(pendingOffers.has(targetUser.id)) {
+    if (pendingOffers.has(targetUser.id)) {
         return await interaction.editReply({ content: "This user already has a pending offer, please wait until the offer is done." });
     }
 
@@ -102,9 +104,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     // Check cache for both users
     let initiatorProfile: any = userProfileCache.get(interaction.user.id);
     let targetProfile: any = userProfileCache.get(targetUser.id);
-    
-    // If not in cache, get from database and cache it
-    if (!initiatorProfile) {
+
+      if (!initiatorProfile) {
         const dbProfile = await database.findUser(interaction.user.id);
         if (!dbProfile) return await interaction.editReply({ content: "Both players must have profiles to trade. Use `/farmer` to create one." });
         initiatorProfile = (dbProfile as any).toObject();
@@ -176,20 +177,13 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             { name: "Offering", value: `${offerQuantity}x ${offerItem}`, inline: true },
             { name: "Requesting", value: `${requestQuantity}x ${requestItem}`, inline: true }
         )
-        .setColor("#FFD700")
+        .setColor(COLORS.PRIMARY)
         .setTimestamp()
         .setFooter({ text: "This trade offer expires in 2 minutes" });
 
     // Create buttons
-    const acceptBtn = new ButtonBuilder()
-        .setCustomId("accept")
-        .setLabel("Accept Trade")
-        .setStyle(ButtonStyle.Success);
-
-    const denyBtn = new ButtonBuilder()
-        .setCustomId("deny")
-        .setLabel("Deny Trade")
-        .setStyle(ButtonStyle.Danger);
+    const acceptBtn = CONFIRM_BUTTONS.accept().setLabel("Accept Trade");
+    const denyBtn = CONFIRM_BUTTONS.deny().setLabel("Deny Trade");
 
     const row = new ActionRowBuilder<ButtonBuilder>()
         .addComponents(acceptBtn, denyBtn);
@@ -213,11 +207,11 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 // Hydrate both profiles into Mongoose documents
                 const initiatorDbProfile: any = schema.hydrate(initiatorProfile);
                 const targetDbProfile: any = schema.hydrate(targetProfile);
-                
+
                 if (!initiatorDbProfile || !targetDbProfile) {
                     userProfileCache.del(interaction.user.id);
                     userProfileCache.del(targetUser.id);
-                    return i.reply({ content: "An error occurred while processing the trade.", ephemeral: true });
+                    return i.reply({ content: "An error occurred while processing the trade.", flags: MessageFlags.Ephemeral });
                 }
 
                 const initiatorGoldBefore = (initiatorProfile as any).gold;
@@ -225,7 +219,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
                 let reqItemObj = targetDbProfile.storage[requestType].find((v: { name: string; amount: number }) => v.name === requestItem);
                 let offeredItemObj = initiatorDbProfile.storage[offerType].find((v: { name: string; amount: number }) => v.name === offerItem);
-                
+
                 await database.removeItemFromstorage(initiatorDbProfile, offerItem, offerQuantity, offerType as "market_items" | "products");
                 await database.removeItemFromstorage(targetDbProfile, requestItem, requestQuantity, requestType as "market_items" | "products");
                 await database.addItemToStorage(initiatorDbProfile, reqItemObj, requestQuantity, requestType as "market_items" | "products");
@@ -234,7 +228,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 // Update cache for both users
                 const updatedInitiatorProfile = (initiatorDbProfile as any).toObject();
                 const updatedTargetProfile = (targetDbProfile as any).toObject();
-                
+
                 userProfileCache.set(interaction.user.id, updatedInitiatorProfile);
                 userProfileCache.set(targetUser.id, updatedTargetProfile);
 
@@ -257,7 +251,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                     targetGoldAfter: targetGoldAfter
                 });
 
-                tradeEmbed.setColor("Green")
+                tradeEmbed.setColor(COLORS.SUCCESS)
                     .setDescription("✅ Trade completed successfully!")
                     .setFooter(null);
             } catch (error) {
@@ -267,12 +261,12 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 });
                 userProfileCache.del(interaction.user.id);
                 userProfileCache.del(targetUser.id);
-                tradeEmbed.setColor("Red")
+                tradeEmbed.setColor(COLORS.ERROR)
                     .setDescription("❌ An error occurred during the trade!")
                     .setFooter(null);
             }
         } else {
-            tradeEmbed.setColor("Red")
+            tradeEmbed.setColor(COLORS.ERROR)
                 .setDescription("❌ Trade offer denied!")
                 .setFooter(null);
         }
@@ -288,7 +282,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         pendingOffers.delete(targetUser.id);
         pendingOffers.delete(interaction.user.id);
         if (reason === "time" && collected.size === 0) {
-            tradeEmbed.setColor("Red")
+            tradeEmbed.setColor(COLORS.ERROR)
                 .setDescription("❌ Trade offer expired!")
                 .setFooter(null);
 

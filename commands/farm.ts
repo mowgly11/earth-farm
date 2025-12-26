@@ -1,4 +1,4 @@
-import { CommandInteraction, SlashCommandBuilder, MessageFlags, AttachmentBuilder } from "discord.js";
+import { CommandInteraction, SlashCommandBuilder, MessageFlags, AttachmentBuilder, ButtonBuilder, ActionRowBuilder, EmbedBuilder } from "discord.js";
 import database from "../database/methods.ts";
 import { userProfileCache } from "../index.ts";
 import Canvas, { type Image } from "canvas";
@@ -6,46 +6,83 @@ import { join } from "path";
 import fs from "fs";
 import type { FarmCanvasProperties } from "../types/commands_types.ts";
 import getImage from "../utils/image_loading.ts";
+import { BUTTONS } from "../utils/buttons.ts";
+import { COLORS } from "../utils/constants.ts";
+import { createNoProfileEmbed } from "../utils/onboarding.ts";
 
 let assetsPath = join(__dirname, '../assets');
 let allDirectories = fs.readdirSync(assetsPath).filter((dir) => dir !== "products" && dir !== "cards");
 
 let imagesObj: Record<string, Image> = {};
+let imagesLoaded = false;
+let loadingPromise: Promise<void> | null = null;
 
-allDirectories.forEach((dir) => {
-    let dirImages = fs.readdirSync(join(assetsPath, dir));
-    dirImages.forEach(async (file) => {
-        const image = await getImage(join(assetsPath, dir, file));
-        imagesObj[file.replace(".png", "").replace(".jpeg", "")] = image;
-    });
-});
+/**
+ * Ensures all farm images are loaded before proceeding
+ * Uses lazy loading with a lock to prevent multiple concurrent loads
+ */
+async function ensureImagesLoaded(): Promise<void> {
+    if (imagesLoaded) return;
+    if (loadingPromise) return loadingPromise;
+
+    loadingPromise = (async () => {
+        for (const dir of allDirectories) {
+            const dirImages = fs.readdirSync(join(assetsPath, dir));
+            for (const file of dirImages) {
+                try {
+                    const image = await getImage(join(assetsPath, dir, file));
+                    imagesObj[file.replace(".png", "").replace(".jpeg", "")] = image;
+                } catch (err) {
+                    console.error(`Failed to load farm image: ${file}`, err);
+                }
+            }
+        }
+        imagesLoaded = true;
+    })();
+
+    return loadingPromise;
+}
+
 
 export const data = new SlashCommandBuilder()
     .setName("farm")
-    .setDescription("check your farm stats and occupied crop & animal slots")
+    .setDescription("View your farm with crops and animals!")
     .addUserOption(option =>
         option
             .setName("farmer")
-            .setDescription("check another farmer's farm stats")
+            .setDescription("View another farmer's farm")
     )
 
 export async function execute(interaction: CommandInteraction) {
     let user: any = interaction.options.get("farmer")?.user;
     if (!user) user = interaction.user;
 
-    if (user.bot) return await interaction.reply({ content: "you can't interact with bots!", flags: MessageFlags.Ephemeral });
+    const isSelf = user.id === interaction.user.id;
+
+    if (user.bot) return await interaction.reply({ content: "You can't view a bot's farm!", flags: MessageFlags.Ephemeral });
     await interaction.deferReply();
 
-    // Check cache first
-    let userProfile: any = userProfileCache.get(user.id);
+    // Ensure all images are loaded before proceeding
+    await ensureImagesLoaded();
 
-    // If not in cache, get from database and cache it
-    if (!userProfile) {
+      let userProfile: any = userProfileCache.get(user.id);
+
+      if (!userProfile) {
         const dbProfile = await database.findUser(user.id);
-        if (!dbProfile) return await interaction.editReply({ content: `**${user.username}**'s farm wasn't found.` });
+        if (!dbProfile) {
+            if (isSelf) {
+                // Rich onboarding embed for self
+                return await interaction.editReply(createNoProfileEmbed(user.id));
+            }
+            // Simple embed for viewing others
+            const embed = new EmbedBuilder()
+                .setTitle("❌ Farm Not Found")
+                .setColor(COLORS.ERROR)
+                .setDescription(`**${user.username}** doesn't have a farm yet.`);
+            return await interaction.editReply({ embeds: [embed] });
+        }
 
-        // Cache the plain object
-        userProfile = (dbProfile as any).toObject();
+            userProfile = (dbProfile as any).toObject();
         userProfileCache.set(user.id, userProfile);
     }
 
@@ -124,13 +161,31 @@ export async function execute(interaction: CommandInteraction) {
 
     const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: "farm.png" });
 
-    await interaction.editReply({ content: stringifySlots(userProfile.farm) + "Here is a picture of " + user.username + " farm", files: [attachment] });
+    const farmInfo = stringifySlots(userProfile.farm) + "Here is a picture of " + user.username + "'s farm";
+
+    // Add navigation buttons for self
+    if (isSelf) {
+        const hasReadyCrops = farmProperties.crops.some((c: any) => Date.now() > c.ready_at);
+        const hasReadyAnimals = farmProperties.animals.some((a: any) => Date.now() > a.ready_at);
+        const hasReady = hasReadyCrops || hasReadyAnimals;
+
+        const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
+            BUTTONS.harvest().setStyle(hasReady ? 3 : 2), // SUCCESS : SECONDARY
+            BUTTONS.plant(),
+            BUTTONS.dashboard()
+        );
+
+        return await interaction.editReply({ content: farmInfo, files: [attachment], components: [buttons] });
+    }
+
+    await interaction.editReply({ content: farmInfo, files: [attachment] });
 }
 
 function stringifySlots(farmDetails: any) {
     let strOfUserData: string = "";
     const now = Date.now();
-    const actionsData = require("../config/data/actions.json").actions;
+    const actionsRaw = require("../config/data/actions.json");
+    const actionsData = (actionsRaw.default || actionsRaw).actions;
 
     // Check and reset expired boosts
     if (farmDetails.farm?.occupied_animal_slots) {

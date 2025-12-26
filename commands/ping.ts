@@ -1,5 +1,6 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from "discord.js";
 import database from "../database/methods.ts";
+import { COLORS } from "../utils/constants.ts";
 
 export const data = new SlashCommandBuilder()
     .setName("ping")
@@ -23,7 +24,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     const embed = new EmbedBuilder()
         .setTitle("🏓 Pong!")
-        .setColor("#00FF00")
+        .setColor(COLORS.SUCCESS)
         .addFields(
             { name: "🤖 Bot Latency", value: `${botLatency}ms`, inline: true },
             { name: "🌐 Discord API", value: `${discordLatency}ms`, inline: true },

@@ -1,8 +1,10 @@
-import { CommandInteraction, SlashCommandBuilder, AttachmentBuilder, MessageFlags, User } from "discord.js";
+import { CommandInteraction, SlashCommandBuilder, AttachmentBuilder, MessageFlags, User, ButtonBuilder, ActionRowBuilder, EmbedBuilder } from "discord.js";
 import database from '../database/methods.ts';
 import { userProfileCache } from "../index.ts";
 import Canvas from "canvas";
 import path from "path";
+import { BUTTONS } from "../utils/buttons.ts";
+import { COLORS } from "../utils/constants.ts";
 
 Canvas.registerFont(path.join(__dirname, "../fonts", "lumber.ttf"), { family: 'CustomFont' });
 
@@ -15,11 +17,11 @@ let baseProfileImage: Canvas.Image;
 
 export const data = new SlashCommandBuilder()
   .setName("farmer")
-  .setDescription("shows your farm stats.")
+  .setDescription("View your farm profile!")
   .addUserOption(option =>
     option
       .setName("target")
-      .setDescription("shows a farmer's stats.")
+      .setDescription("View another farmer's profile")
   )
 
 export async function execute(interaction: CommandInteraction) {
@@ -27,23 +29,27 @@ export async function execute(interaction: CommandInteraction) {
   const mentionedUser = interaction.options.get("target")?.user;
   let user: any;
 
-  if (mentionedUser?.bot) return await interaction.reply({ content: "you can't interact with bots!", flags: MessageFlags.Ephemeral });
+  if (mentionedUser?.bot) return await interaction.reply({ content: "You can't interact with bots!", flags: MessageFlags.Ephemeral });
 
   await interaction.deferReply();
 
   let discordUser: User;
+  const isSelf = !mentionedUser || mentionedUser.id === interaction.user.id;
 
   if (mentionedUser) {
     discordUser = mentionedUser;
-    // Check cache first for mentioned user
     let userProfile: any = userProfileCache.get(mentionedUser.id);
 
-    // If not in cache, get from database and cache it
     if (!userProfile) {
       const dbProfile = await database.findUser(mentionedUser.id);
-      if (!dbProfile) return await interaction.editReply({ content: `**${mentionedUser.username}**'s farm wasn't found.` });
+      if (!dbProfile) {
+        const embed = new EmbedBuilder()
+          .setTitle("❌ Profile Not Found")
+          .setColor(COLORS.ERROR)
+          .setDescription(`**${mentionedUser.username}** doesn't have a farm yet.`);
+        return await interaction.editReply({ embeds: [embed] });
+      }
 
-      // Cache the plain object
       userProfile = (dbProfile as any).toObject();
       userProfileCache.set(mentionedUser.id, userProfile);
     }
@@ -53,24 +59,35 @@ export async function execute(interaction: CommandInteraction) {
     const username = interaction.user?.username;
 
     if (discordUser.id) {
-      // Check cache first
       let userProfile: any = userProfileCache.get(discordUser.id);
 
-      // If not in cache, get from database and cache it
       if (!userProfile) {
         const dbProfile = await database.findUser(discordUser.id);
         if (!dbProfile) {
           const newUser = await database.createUser(discordUser.id, username);
           if (newUser) {
-            // Cache the new user
             userProfile = (newUser as any).toObject();
             userProfileCache.set(discordUser.id, userProfile);
-            return await interaction.editReply({ content: `Hey there **${interaction.user.username}**! looks like its your first time playing Earth bot. i'll setup everything you'll need through your adventure. Enjoy!` });
+
+            // Welcome message with buttons
+            const embed = new EmbedBuilder()
+              .setTitle("🌾 Welcome to Earth Farm!")
+              .setColor(COLORS.SUCCESS)
+              .setDescription(`Hey there **${interaction.user.username}**! Your farm has been created. Let's get started!`)
+              .addFields(
+                { name: "🎁 First Step", value: "Claim your daily reward!", inline: false }
+              );
+
+            const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
+              BUTTONS.claimDaily(),
+              BUTTONS.dashboard().setStyle(1) // PRIMARY
+            );
+
+            return await interaction.editReply({ embeds: [embed], components: [buttons] });
           }
-          return await interaction.editReply({ content: "an error occurred" });
+          return await interaction.editReply({ content: "An error occurred" });
         }
 
-        // Cache the plain object
         userProfile = (dbProfile as any).toObject();
         userProfileCache.set(discordUser.id, userProfile);
       }
@@ -96,34 +113,46 @@ export async function execute(interaction: CommandInteraction) {
   ctx.drawImage(baseProfileImage, 0, 0, canvas.width, canvas.height);
 
   // all the text and stats
-
   ctx.fillText(`${discordUser.username}'s Profile`, 60, 80);
 
   let lastXandYValue = [30, 110];
-  for(let i = 0; i < statsToDisplay.length; i++) {
-    if(i > 0 && i % 4 === 0) {
-      lastXandYValue[0]+=110;
+  for (let i = 0; i < statsToDisplay.length; i++) {
+    if (i > 0 && i % 4 === 0) {
+      lastXandYValue[0] += 110;
       lastXandYValue[1] = 110;
-    } 
-    
+    }
+
     ctx.fillText(statsToDisplay[i], lastXandYValue[0], lastXandYValue[1]);
     lastXandYValue[1] += 20;
   }
 
   // avatar clipping and drawing
-
   ctx.beginPath();
   ctx.arc(370, 150, 30, 0, 2 * Math.PI);
   ctx.closePath();
   ctx.clip();
 
-  const avatar = await Canvas.loadImage(`https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`);
+  // Handle users with default avatars (no custom avatar)
+  const avatarUrl = discordUser.avatar
+    ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
+    : discordUser.displayAvatarURL({ extension: 'png', size: 128 });
+  const avatar = await Canvas.loadImage(avatarUrl);
 
-  ctx.drawImage(avatar, 338, 120, 62, 62) // X=limn  Y=lfo9
+  ctx.drawImage(avatar, 338, 120, 62, 62)
 
   // crafting the final attachment
-
   const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: "farmer.png" });
+
+  // Navigation buttons for self
+  if (isSelf) {
+    const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      BUTTONS.farm(),
+      BUTTONS.viewBarn(),
+      BUTTONS.dashboard()
+    );
+
+    return await interaction.editReply({ files: [attachment], components: [buttons] });
+  }
 
   await interaction.editReply({ files: [attachment] });
 }
