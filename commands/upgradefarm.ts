@@ -5,7 +5,8 @@ import { userProfileCache } from "../index.ts";
 import schema from "../database/schema.ts";
 import { logError } from "../utils/error_logger.ts";
 import { COLORS } from "../utils/constants.ts";
-import { CONFIRM_BUTTONS } from "../utils/buttons.ts";
+import { CONFIRM_BUTTONS, BUTTONS } from "../utils/buttons.ts";
+import { getProfile, updateCache } from "../services/index.ts";
 
 export const data = new SlashCommandBuilder()
     .setName("upgradefarm")
@@ -16,15 +17,11 @@ export async function execute(interaction: CommandInteraction) {
 
     const userId = interaction.user.id;
 
-      let userProfile: any = userProfileCache.get(userId);
-
-      if (!userProfile) {
-        const dbProfile = await database.findUser(userId);
-        if (!dbProfile) return await interaction.editReply({ content: "Please make a profile using `/farmer` before trying to upgrade your farm." });
-
-            userProfile = (dbProfile as any).toObject();
-        userProfileCache.set(userId, userProfile);
-    }
+    // Get user profile (using ProfileService)
+    const profileResult = await getProfile(userId);
+    if (!profileResult) return await interaction.editReply({ content: "Please make a profile using `/farmer` before trying to upgrade your farm." });
+    let userProfile = profileResult.profile;
+    const dbProfile = profileResult.dbProfile;
 
     const nextLevelData = farmLevels.find(v => v.level === userProfile.farm.level + 1);
     if (!nextLevelData) return await interaction.editReply({ content: "You are at the max level!" });
@@ -42,7 +39,7 @@ export async function execute(interaction: CommandInteraction) {
     const cancelBtn = CONFIRM_BUTTONS.cancel();
 
     const row = new ActionRowBuilder<ButtonBuilder>()
-        .addComponents(confirmBtn, cancelBtn);
+        .addComponents(confirmBtn, cancelBtn, BUTTONS.dashboard());
 
     const response = await interaction.reply({ embeds: [confirmationEmbed], components: [row], withResponse: true });
 
@@ -53,12 +50,7 @@ export async function execute(interaction: CommandInteraction) {
         await col.deferUpdate();
 
         try {
-            // Hydrate the cached profile into a Mongoose document
-            const dbProfile = schema.hydrate(userProfile);
-            if (!dbProfile) {
-                userProfileCache.del(userId);
-                return col.reply({ content: "An error occurred while processing your request.", flags: MessageFlags.Ephemeral });
-            }
+            // dbProfile already hydrated by ProfileService
 
             switch (col.customId) {
                 case "confirm":

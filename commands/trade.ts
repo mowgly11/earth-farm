@@ -8,7 +8,8 @@ import { userProfileCache } from "../index.ts";
 import schema from "../database/schema.ts";
 import { logError } from "../utils/error_logger.ts";
 import { COLORS } from "../utils/constants.ts";
-import { CONFIRM_BUTTONS } from "../utils/buttons.ts";
+import { CONFIRM_BUTTONS, BUTTONS } from "../utils/buttons.ts";
+import { getProfile } from "../services/index.ts";
 
 type MarketCategory = 'seeds' | 'animals' | 'crops' | 'animal_products' | 'upgrades';
 
@@ -101,23 +102,19 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         return await interaction.editReply({ content: "You cannot trade with bots!" });
     }
 
-    // Check cache for both users
-    let initiatorProfile: any = userProfileCache.get(interaction.user.id);
-    let targetProfile: any = userProfileCache.get(targetUser.id);
+    // Get profiles for both users (using ProfileService)
+    const initiatorResult = await getProfile(interaction.user.id);
+    const targetResult = await getProfile(targetUser.id);
 
-      if (!initiatorProfile) {
-        const dbProfile = await database.findUser(interaction.user.id);
-        if (!dbProfile) return await interaction.editReply({ content: "Both players must have profiles to trade. Use `/farmer` to create one." });
-        initiatorProfile = (dbProfile as any).toObject();
-        userProfileCache.set(interaction.user.id, initiatorProfile);
+    if (!initiatorResult) {
+        return await interaction.editReply({ content: "Both players must have profiles to trade. Use `/farmer` to create one." });
+    }
+    if (!targetResult) {
+        return await interaction.editReply({ content: "Both players must have profiles to trade. Use `/farmer` to create one." });
     }
 
-    if (!targetProfile) {
-        const dbProfile = await database.findUser(targetUser.id);
-        if (!dbProfile) return await interaction.editReply({ content: "Both players must have profiles to trade. Use `/farmer` to create one." });
-        targetProfile = (dbProfile as any).toObject();
-        userProfileCache.set(targetUser.id, targetProfile);
-    }
+    let initiatorProfile = initiatorResult.profile;
+    let targetProfile = targetResult.profile;
 
     // Check if initiator has enough of the offered item
     const initiatorItem = initiatorProfile.storage[offerType as keyof typeof initiatorProfile.storage].find((v: { name: string; amount: number }) => v.name === offerItem);
@@ -186,7 +183,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const denyBtn = CONFIRM_BUTTONS.deny().setLabel("Deny Trade");
 
     const row = new ActionRowBuilder<ButtonBuilder>()
-        .addComponents(acceptBtn, denyBtn);
+        .addComponents(acceptBtn, denyBtn, BUTTONS.dashboard());
 
     const response = await interaction.editReply({
         content: `<@${targetUser?.id}>, you have a trade offer!`,

@@ -8,6 +8,7 @@ import { ERRORS, COLORS } from "../utils/constants.ts";
 import { createNoProfileEmbed } from "../utils/onboarding.ts";
 import { BUTTONS } from "../utils/buttons.ts";
 import { relativeTimestamp } from "../utils/ux.ts";
+import { getProfile, updateCache } from "../services/index.ts";
 
 let choices: Array<ChoicesArray> = [];
 marketItems.map(option => {
@@ -34,18 +35,14 @@ export async function execute(interaction: CommandInteraction) {
     const animal: string = String(interaction.options.get("animal")?.value)?.trim();
     const userId = interaction.user.id;
 
-      let userProfile: any = userProfileCache.get(userId);
-
-      if (!userProfile) {
-        const dbProfile = await database.findUser(userId);
-        if (!dbProfile) return await interaction.editReply(createNoProfileEmbed(interaction.user.id));
-
-        userProfile = (dbProfile as any).toObject();
-        userProfileCache.set(userId, userProfile);
-    }
+    // Get user profile (using ProfileService)
+    const profileResult = await getProfile(userId);
+    if (!profileResult) return await interaction.editReply(createNoProfileEmbed(interaction.user.id));
+    let userProfile = profileResult.profile;
+    const dbProfile = profileResult.dbProfile;
 
     // Check if user has the animal
-    const animalInStorage = userProfile.storage.market_items.find((v: Record<string, string | number>) => v?.name === animal);
+    const animalInStorage = userProfile.storage.market_items.find((v: any) => v?.name === animal);
     if (!animalInStorage) {
         const embed = new EmbedBuilder()
             .setTitle("❌ No Animal in Storage")
@@ -82,12 +79,7 @@ export async function execute(interaction: CommandInteraction) {
     const jsonitem = userProfile.storage.market_items.find((v: any) => v.name === animal)!;
     const animalInfo = marketItems.find(m => m.name === animal);
 
-    // Hydrate the cached profile into a Mongoose document
-    const dbProfile = schema.hydrate(userProfile);
-    if (!dbProfile) {
-        userProfileCache.del(userId);
-        return await interaction.editReply({ content: ERRORS.GENERIC });
-    }
+    // dbProfile already hydrated by ProfileService
 
     try {
         await database.removeItemFromstorage(dbProfile, animal, 1, "market_items");

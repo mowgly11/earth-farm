@@ -1,6 +1,5 @@
-import { REST, Routes, SlashCommandBuilder } from "discord.js";
+import { REST, Routes } from "discord.js";
 import { commands } from "../commands";
-import { readdirSync } from "fs";
 
 const rest = new REST({ version: "10" }).setToken(process.env.token!);
 

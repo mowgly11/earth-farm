@@ -66,3 +66,23 @@ export const TIMEOUTS = {
     SCRATCH_COLLECTOR: 30000,     // 30 seconds
     CONFIRMATION: 30000,          // 30 seconds
 } as const;
+
+// ============ INTERVALS ============
+export const INTERVALS = {
+    STATUS_ROTATION: 15000,       // 15 seconds - bot status cycling
+    NAV_CLEANUP: 60000,           // 1 minute - nav history cleanup
+} as const;
+
+// ============ CACHE SETTINGS ============
+export const CACHE = {
+    PROFILE_TTL: 60,              // 60 seconds - profile cache TTL
+    NAV_HISTORY_TTL: 300000,      // 5 minutes - nav history TTL
+    NAV_MAX_STACK: 10,            // Max nav history stack depth
+} as const;
+
+// ============ LIMITS ============
+export const LIMITS = {
+    SELECT_MENU_OPTIONS: 25,      // Discord max select menu options
+    EMBED_DESCRIPTION: 4096,      // Discord max embed description
+    EMBED_FIELDS: 25,             // Discord max embed fields
+} as const;

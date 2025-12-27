@@ -1,5 +1,4 @@
 import { CommandInteraction, SlashCommandBuilder, MessageFlags, EmbedBuilder } from "discord.js";
-import database from "../database/methods.js";
 import { userProfileCache } from "../index.ts";
 import schema from "../database/schema.ts";
 import { logError } from "../utils/error_logger.ts";
@@ -7,6 +6,7 @@ import { ERRORS, COLORS } from "../utils/constants.ts";
 import { formatNumber, relativeTimestamp, beforeAfter, getRandomTip, formatDuration } from "../utils/ux.ts";
 import { createDailyButtons } from "../utils/button_handler.ts";
 import { createNoProfileEmbed } from "../utils/onboarding.ts";
+import { getProfile } from "../services/index.ts";
 
 export const data = new SlashCommandBuilder()
     .setName("daily")
@@ -18,15 +18,10 @@ export async function execute(interaction: CommandInteraction) {
     await interaction.deferReply();
     if (!user) user = interaction.user;
 
-      let userProfile: any = userProfileCache.get(user.id);
-
-      if (!userProfile) {
-        const dbProfile = await database.findUser(user.id);
-        if (!dbProfile) return await interaction.editReply(createNoProfileEmbed(user.id));
-
-            userProfile = (dbProfile as any).toObject();
-        userProfileCache.set(user.id, userProfile);
-    }
+    // Get user profile (using ProfileService)
+    const profileResult = await getProfile(user.id);
+    if (!profileResult) return await interaction.editReply(createNoProfileEmbed(user.id));
+    let userProfile = profileResult.profile;
 
     let timeLeft = userProfile.daily - Date.now();
 

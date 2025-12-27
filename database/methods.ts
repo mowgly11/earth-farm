@@ -206,10 +206,8 @@ class DatabaseMethods {
             userProfile.xp += findItemInDatabase?.xp_gain;
         }
 
-        await this.saveNestedObject(userProfile, "farm");
-        await this.saveNestedObject(userProfile, "storage");
-
-        await userProfile.save();
+        // Save all changes in a single database call (was 3 calls before)
+        await this.saveMultipleFields(userProfile, "farm", "storage", "xp");
 
         return ready;
     }
@@ -217,7 +215,8 @@ class DatabaseMethods {
     async checkAndRemoveDeadAnimals(userProfile: any) {
         let deadAnimals = [];
         for (let i = userProfile.farm.occupied_animal_slots.length - 1; i >= 0; i--) {
-            if (userProfile.farm.occupied_animal_slots[i].lifetime - Date.now() <= 0) {
+            // Check if animal has died (dies_at is timestamp, not duration)
+            if (userProfile.farm.occupied_animal_slots[i].dies_at && userProfile.farm.occupied_animal_slots[i].dies_at <= Date.now()) {
                 deadAnimals.push(userProfile.farm.occupied_animal_slots[i].name);
                 await this.undeployAnimal(userProfile, i + 1);
             }

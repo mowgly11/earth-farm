@@ -1,4 +1,37 @@
-node_modules
-.git
+# Dependencies (installed in container)
+node_modules/
+
+# Git
+.git/
+.gitignore
+
+# Environment files (sensitive)
 .env
+.env.local
+.env.*.local
+
+# Development files
+.agent/
 deploy.sh
+docker-compose*.yml
+
+# IDE
+.vscode/
+.idea/
+
+# Build artifacts
+dist/
+*.log
+
+# Documentation (not needed in production)
+README.md
+docs/
+*.md
+
+# Test files
+__tests__/
+*.test.ts
+*.spec.ts
+
+# Misc
+.antigravityignore

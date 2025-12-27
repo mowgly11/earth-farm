@@ -9,7 +9,8 @@ import { logError } from "../utils/error_logger.ts";
 import { ERRORS, COLORS } from "../utils/constants.ts";
 import { createNoProfileEmbed } from "../utils/onboarding.ts";
 import { formatNumber, getRandomTip, storageIndicator } from "../utils/ux.ts";
-import { BTN_STYLE, SELL_BUTTONS } from "../utils/buttons.ts";
+import { BTN_STYLE, SELL_BUTTONS, BUTTONS } from "../utils/buttons.ts";
+import { getProfile } from "../services/index.ts";
 
 export const data = new SlashCommandBuilder()
     .setName("sell")
@@ -18,14 +19,10 @@ export const data = new SlashCommandBuilder()
 export async function execute(interaction: ChatInputCommandInteraction) {
     const userId = interaction.user.id;
 
-    // Get user profile
-    let userProfile: any = userProfileCache.get(userId);
-    if (!userProfile) {
-        const dbProfile = await database.findUser(userId);
-        if (!dbProfile) return await interaction.reply({ ...createNoProfileEmbed(userId), flags: MessageFlags.Ephemeral });
-        userProfile = (dbProfile as any).toObject();
-        userProfileCache.set(userId, userProfile);
-    }
+    // Get user profile (using ProfileService)
+    const profileResult = await getProfile(userId);
+    if (!profileResult) return await interaction.reply({ ...createNoProfileEmbed(userId), flags: MessageFlags.Ephemeral });
+    let userProfile = profileResult.profile;
 
     // Track selected item
     let selectedItem: any = null;
@@ -261,6 +258,13 @@ function createSellView(profile: any, selectedItem: any, selectedType: string, u
             embed.setFooter({ text: "Select an item from the dropdown above" });
         }
     }
+
+    // Add navigation row with dashboard button
+    const navRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        BUTTONS.market().setLabel("Buy More"),
+        BUTTONS.dashboard()
+    );
+    components.push(navRow);
 
     return { embeds: [embed], components };
 }

@@ -8,6 +8,7 @@ import { ERRORS, COLORS } from "../utils/constants.ts";
 import { createNoProfileEmbed } from "../utils/onboarding.ts";
 import { BUTTONS } from "../utils/buttons.ts";
 import { formatNumber, relativeTimestamp } from "../utils/ux.ts";
+import { getProfile, updateCache } from "../services/index.ts";
 
 let choices: Array<ChoicesArray> = [];
 marketItems.map(option => {
@@ -45,18 +46,13 @@ export async function execute(interaction: CommandInteraction) {
 
   const userId = interaction.user.id;
 
-  let userProfile: any = userProfileCache.get(userId);
-
-  if (!userProfile) {
-    const dbProfile = await database.findUser(userId);
-    if (!dbProfile) return await interaction.editReply(createNoProfileEmbed(interaction.user.id));
-
-    userProfile = (dbProfile as any).toObject();
-    userProfileCache.set(userId, userProfile);
-  }
+  // Get user profile (using ProfileService)
+  const profileResult = await getProfile(userId);
+  if (!profileResult) return await interaction.editReply(createNoProfileEmbed(interaction.user.id));
+  let userProfile = profileResult.profile;
 
   // Check if user has the seeds
-  const seedInStorage = userProfile.storage.market_items.find((v: Record<string, string | number>) => v?.name === item);
+  const seedInStorage = userProfile.storage.market_items.find((v: any) => v?.name === item);
   if (!seedInStorage || seedInStorage.amount < quantity) {
     const embed = new EmbedBuilder()
       .setTitle("❌ Not Enough Seeds")

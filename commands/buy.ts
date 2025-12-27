@@ -3,12 +3,13 @@ import marketItems from "../config/items/market_items.json";
 import database from "../database/methods.ts";
 import { logTransaction } from "../utils/transaction_logger.ts";
 import { userProfileCache } from "../index.ts";
-import schema from "../database/schema.ts";
 import { logError } from "../utils/error_logger.ts";
+import { logger } from "../utils/logger.ts";
 import { ERRORS, COLORS } from "../utils/constants.ts";
 import { createNoProfileEmbed } from "../utils/onboarding.ts";
 import { formatNumber, beforeAfter, storageIndicator, getItemEmoji, getRandomTip } from "../utils/ux.ts";
 import { createBuyButtons } from "../utils/button_handler.ts";
+import { getProfile } from "../services/index.ts";
 
 let choices: Array<ChoicesArray> = [];
 marketItems.map(option => {
@@ -44,15 +45,11 @@ export async function execute(interaction: CommandInteraction) {
     let quantity: number = interaction.options.get("quantity")?.value as number;
     const userId = interaction.user.id;
 
-      let userProfile: any = userProfileCache.get(userId);
-
-      if (!userProfile) {
-        const dbProfile = await database.findUser(userId);
-        if (!dbProfile) return await interaction.editReply(createNoProfileEmbed(interaction.user.id));
-
-            userProfile = (dbProfile as any).toObject();
-        userProfileCache.set(userId, userProfile);
-    }
+    // Get user profile (using ProfileService)
+    const profileResult = await getProfile(userId);
+    if (!profileResult) return await interaction.editReply(createNoProfileEmbed(interaction.user.id));
+    let userProfile = profileResult.profile;
+    const dbProfile = profileResult.dbProfile;
 
     const findItemInDatabase = marketItems.find(v => v.name === item)!;
 
@@ -118,12 +115,7 @@ export async function execute(interaction: CommandInteraction) {
     const goldBefore = userProfile.gold;
     const storageBefore = storageCount;
 
-    // Hydrate the cached profile into a Mongoose document
-    const dbProfile = schema.hydrate(userProfile);
-    if (!dbProfile) {
-        userProfileCache.del(userId);
-        return await interaction.editReply({ content: ERRORS.GENERIC });
-    }
+    // dbProfile already hydrated by ProfileService
 
     try {
         // First update storage
@@ -196,7 +188,7 @@ export async function execute(interaction: CommandInteraction) {
         return await interaction.editReply({ embeds: [receiptEmbed], components: [actionButtons] });
 
     } catch (error) {
-        console.log(error);
+        logger.error("Buy command error:", error);
         logError(interaction.client, {
             path: 'buy.ts',
             error,

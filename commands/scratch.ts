@@ -9,6 +9,7 @@ import { createNoProfileEmbed } from "../utils/onboarding.ts";
 import { formatNumber, relativeTimestamp, beforeAfter, getRandomTip, formatDuration } from "../utils/ux.ts";
 import { createScratchButtons } from "../utils/button_handler.ts";
 import { SCRATCH_BUTTONS } from "../utils/buttons.ts";
+import { getProfile, updateCache } from "../services/index.ts";
 
 let beforeScratchImage = new AttachmentBuilder(join(__dirname, '../assets', 'cards', 'scratching_card.png'));
 let afterScratchImageGold = new AttachmentBuilder(join(__dirname, '../assets', 'cards', 'scratching_card_gold.png'));
@@ -26,15 +27,10 @@ export async function execute(interaction: CommandInteraction) {
 
     if (!user) user = interaction.user;
 
-      let userProfile: any = userProfileCache.get(user.id);
-
-      if (!userProfile) {
-        const dbProfile = await database.findUser(user.id);
-        if (!dbProfile) return await interaction.editReply(createNoProfileEmbed(user.id));
-
-            userProfile = (dbProfile as any).toObject();
-        userProfileCache.set(user.id, userProfile);
-    }
+    // Get user profile (using ProfileService)
+    const profileResult = await getProfile(user.id);
+    if (!profileResult) return await interaction.editReply(createNoProfileEmbed(user.id));
+    let userProfile = profileResult.profile;
 
     let timeLeft = userProfile.scratch - Date.now();
 

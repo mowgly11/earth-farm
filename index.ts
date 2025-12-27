@@ -1,5 +1,5 @@
 import { ActivityType, Client, Events, GatewayIntentBits, MessageFlags, TextChannel, EmbedBuilder, ActionRowBuilder, ButtonBuilder, StringSelectMenuBuilder } from 'discord.js';
-import { deployCommands, flushCommands } from './handlers/command.ts';
+import { deployCommands } from './handlers/command.ts';
 import { commands } from './commands';
 import MongooseInit from "./database/connect.ts";
 import NodeCache from 'node-cache';
@@ -11,12 +11,12 @@ import { createBarnView } from './commands/barn.ts';
 import { createLeaderboardEmbed, createPaginationButtons, USERS_PER_PAGE, type UserProfile } from './commands/leaderboard.ts';
 import { createWelcomeEmbed, STARTER_BONUS } from './utils/onboarding.ts';
 import database from "./database/methods.ts";
-import { BTN_STYLE } from "./utils/button_handler.ts";
 import { BUTTONS } from "./utils/buttons.ts";
-import { COLORS, ERRORS, BOT_VERSION } from "./utils/constants.ts";
-import { logger } from "./utils/logger.ts";
+import { COLORS, ERRORS, BOT_VERSION, INTERVALS } from "./utils/constants.ts";
+import { logger, silentCatch } from "./utils/logger.ts";
 import { logButtonClick, logSelectMenu } from "./utils/interaction_logger.ts";
-import { pushView, popView, getDepth, clearWidget, startCleanupInterval, addBackButton, type ViewName } from "./utils/nav_history.ts";
+import { pushView, popView, getDepth, clearWidget, startCleanupInterval, addBackButton } from "./utils/nav_history.ts";
+import { getProfile } from "./services/index.ts";
 
 // Global error handlers to prevent crashes
 process.on('uncaughtException', (error) => {
@@ -59,12 +59,23 @@ client.on(Events.ClientReady, async readyClient => {
   startCleanupInterval(); // Start nav history cleanup
   client.user?.setStatus("idle");
 
-  setInterval(() => {
+  // Status rotation interval - store reference for cleanup
+  const statusInterval = setInterval(() => {
     currentStatus[1] = `${client.guilds.cache.size} servers`;
     client.user?.setActivity(currentStatus[i], { type: ActivityType.Watching });
-    i++;
     i = (i + 1) % currentStatus.length;
-  }, 15000);
+  }, INTERVALS.STATUS_ROTATION);
+
+  // Graceful shutdown handler
+  const gracefulShutdown = () => {
+    logger.info("Shutting down gracefully...");
+    clearInterval(statusInterval);
+    client.destroy();
+    process.exit(0);
+  };
+
+  process.on("SIGINT", gracefulShutdown);
+  process.on("SIGTERM", gracefulShutdown);
 });
 
 
@@ -119,17 +130,13 @@ client.on("interactionCreate", async (interaction) => {
 
           // If no history, go to dashboard
           if (!previousView || previousView === 'dashboard') {
-            // Get profile for dashboard
-            let userProfile: any = userProfileCache.get(userId);
-            if (!userProfile) {
-              const dbProfile = await database.findUser(userId);
-              if (!dbProfile) {
-                await interaction.reply({ content: "Profile not found!", flags: MessageFlags.Ephemeral });
-                return;
-              }
-              userProfile = (dbProfile as any).toObject();
-              userProfileCache.set(userId, userProfile);
+            // Get profile for dashboard (using ProfileService)
+            const profileResult = await getProfile(userId);
+            if (!profileResult) {
+              await interaction.reply({ content: "Profile not found!", flags: MessageFlags.Ephemeral });
+              return;
             }
+            const userProfile = profileResult.profile;
 
             const username = interaction.user.username;
             const avatar = interaction.user.displayAvatarURL({ size: 128 });
@@ -142,17 +149,13 @@ client.on("interactionCreate", async (interaction) => {
             return;
           }
 
-          // Get profile for rendering
-          let userProfile: any = userProfileCache.get(userId);
-          if (!userProfile) {
-            const dbProfile = await database.findUser(userId);
-            if (!dbProfile) {
-              await interaction.reply({ content: "Profile not found!", flags: MessageFlags.Ephemeral });
-              return;
-            }
-            userProfile = (dbProfile as any).toObject();
-            userProfileCache.set(userId, userProfile);
+          // Get profile for rendering (using ProfileService)
+          const renderProfileResult = await getProfile(userId);
+          if (!renderProfileResult) {
+            await interaction.reply({ content: "Profile not found!", flags: MessageFlags.Ephemeral });
+            return;
           }
+          const userProfile = renderProfileResult.profile;
 
           const username = interaction.user.username;
           const avatar = interaction.user.displayAvatarURL({ size: 128 });
@@ -194,18 +197,14 @@ client.on("interactionCreate", async (interaction) => {
           return;
         }
 
-        // Get user profile for views
-        let userProfile: any = userProfileCache.get(userId);
-        if (!userProfile) {
-          const dbProfile = await database.findUser(userId);
-          if (!dbProfile) {
-            const welcome = (await import('./utils/onboarding.ts')).createNoProfileEmbed(userId);
-            await interaction.reply({ ...welcome, flags: MessageFlags.Ephemeral });
-            return;
-          }
-          userProfile = (dbProfile as any).toObject();
-          userProfileCache.set(userId, userProfile);
+        // Get user profile for views (using ProfileService)
+        const profileResult = await getProfile(userId);
+        if (!profileResult) {
+          const welcome = (await import('./utils/onboarding.ts')).createNoProfileEmbed(userId);
+          await interaction.reply({ ...welcome, flags: MessageFlags.Ephemeral });
+          return;
         }
+        const userProfile = profileResult.profile;
 
         // Dashboard - show full UI inline with working collector
         if (target === "dashboard") {
@@ -284,7 +283,7 @@ client.on("interactionCreate", async (interaction) => {
 
             collector.on("end", async () => {
               const disabledRow = createPaginationButtons(currentPage, totalPages, true);
-              await message.edit({ components: [disabledRow, backRow] }).catch(() => { });
+              await message.edit({ components: [disabledRow, backRow] }).catch(silentCatch('leaderboard:disableButtons'));
             });
           } catch (err) {
             logger.error(`Leaderboard inline error:`, err);
@@ -842,7 +841,7 @@ client.on("interactionCreate", async (interaction) => {
         await interaction.reply({ content: `Type \`/${target}\` to use this command!`, flags: MessageFlags.Ephemeral });
       } catch (err) {
         logger.error(`Nav button error:`, err);
-        await interaction.reply({ content: `❌ Error! Type the command instead.`, flags: MessageFlags.Ephemeral }).catch(() => { });
+        await interaction.reply({ content: `❌ Error! Type the command instead.`, flags: MessageFlags.Ephemeral }).catch(silentCatch('nav:errorReply'));
       }
       return;
     }
@@ -853,18 +852,14 @@ client.on("interactionCreate", async (interaction) => {
       const userId = interaction.user.id;
 
       try {
-        // Get user profile
-        let userProfile: any = userProfileCache.get(userId);
-        if (!userProfile) {
-          const dbProfile = await database.findUser(userId);
-          if (!dbProfile) {
-            const welcome = (await import('./utils/onboarding.ts')).createNoProfileEmbed(userId);
-            await interaction.reply({ ...welcome, flags: MessageFlags.Ephemeral });
-            return;
-          }
-          userProfile = (dbProfile as any).toObject();
-          userProfileCache.set(userId, userProfile);
+        // Get user profile (using ProfileService)
+        const profileResult = await getProfile(userId);
+        if (!profileResult) {
+          const welcome = (await import('./utils/onboarding.ts')).createNoProfileEmbed(userId);
+          await interaction.reply({ ...welcome, flags: MessageFlags.Ephemeral });
+          return;
         }
+        const userProfile = profileResult.profile;
 
         // Category switching
         if (["main", "animals", "seeds", "upgrades"].includes(action)) {
@@ -884,7 +879,7 @@ client.on("interactionCreate", async (interaction) => {
 
       } catch (err) {
         logger.error(`Market button error:`, err);
-        await interaction.reply({ content: `❌ Error! Use \`/market\` instead.`, flags: MessageFlags.Ephemeral }).catch(() => { });
+        await interaction.reply({ content: `❌ Error! Use \`/market\` instead.`, flags: MessageFlags.Ephemeral }).catch(silentCatch('market:errorReply'));
       }
       return;
     }
@@ -937,7 +932,7 @@ client.on("interactionCreate", async (interaction) => {
           }
         } catch (err) {
           logger.error("Onboard error:", err);
-          await interaction.reply({ content: "❌ Error creating profile. Try `/farmer` instead.", flags: MessageFlags.Ephemeral }).catch(() => { });
+          await interaction.reply({ content: "❌ Error creating profile. Try `/farmer` instead.", flags: MessageFlags.Ephemeral }).catch(silentCatch('onboard:errorReply'));
         }
         return;
       }
@@ -965,18 +960,14 @@ client.on("interactionCreate", async (interaction) => {
       const userId = interaction.user.id;
 
       try {
-        // Get user profile
-        let userProfile: any = userProfileCache.get(userId);
-        if (!userProfile) {
-          const dbProfile = await database.findUser(userId);
-          if (!dbProfile) {
-            const welcome = (await import('./utils/onboarding.ts')).createNoProfileEmbed(userId);
-            await interaction.reply({ ...welcome, flags: MessageFlags.Ephemeral });
-            return;
-          }
-          userProfile = (dbProfile as any).toObject();
-          userProfileCache.set(userId, userProfile);
+        // Get user profile (using ProfileService)
+        const profileResult = await getProfile(userId);
+        if (!profileResult) {
+          const welcome = (await import('./utils/onboarding.ts')).createNoProfileEmbed(userId);
+          await interaction.reply({ ...welcome, flags: MessageFlags.Ephemeral });
+          return;
         }
+        const userProfile = profileResult.profile;
 
         // Find matched item (handle Bun ES module JSON format)
         const marketItemsRaw = require("./config/items/market_items.json");
@@ -990,7 +981,7 @@ client.on("interactionCreate", async (interaction) => {
         }
       } catch (err) {
         logger.error(`Market select error:`, err);
-        await interaction.reply({ content: `❌ Error! Use \`/market\` instead.`, flags: MessageFlags.Ephemeral }).catch(() => { });
+        await interaction.reply({ content: `❌ Error! Use \`/market\` instead.`, flags: MessageFlags.Ephemeral }).catch(silentCatch('marketSelect:errorReply'));
       }
       return;
     }

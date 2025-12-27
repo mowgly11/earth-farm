@@ -7,6 +7,7 @@ import { ERRORS, COLORS } from "../utils/constants.ts";
 import { createNoProfileEmbed } from "../utils/onboarding.ts";
 import { formatNumber, storageIndicator, getItemEmoji, createProgressBar, getRandomTip } from "../utils/ux.ts";
 import { createHarvestButtons } from "../utils/button_handler.ts";
+import { getProfile, updateCache } from "../services/index.ts";
 
 export const data = new SlashCommandBuilder()
   .setName("harvest")
@@ -17,15 +18,10 @@ export async function execute(interaction: CommandInteraction) {
 
   const userId = interaction.user.id;
 
-  let userProfile: any = userProfileCache.get(userId);
-
-  if (!userProfile) {
-    const dbProfile = await database.findUser(userId);
-    if (!dbProfile) return await interaction.editReply(createNoProfileEmbed(interaction.user.id));
-
-    userProfile = (dbProfile as any).toObject();
-    userProfileCache.set(userId, userProfile);
-  }
+  // Get user profile (using ProfileService)
+  const profileResult = await getProfile(userId);
+  if (!profileResult) return await interaction.editReply(createNoProfileEmbed(interaction.user.id));
+  let userProfile = profileResult.profile;
 
   let storageCount = 0;
   userProfile.storage.market_items.forEach((v: any) => storageCount += v.amount);

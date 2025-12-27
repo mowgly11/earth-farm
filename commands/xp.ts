@@ -1,10 +1,9 @@
 import { CommandInteraction, SlashCommandBuilder, MessageFlags, EmbedBuilder, ButtonBuilder, ActionRowBuilder } from "discord.js";
-import database from "../database/methods.ts";
 import levels from "../config/data/levels.json";
-import { userProfileCache } from "../index.ts";
 import { COLORS } from "../utils/constants.ts";
 import { BUTTONS } from "../utils/buttons.ts";
 import { formatNumber, createProgressBar } from "../utils/ux.ts";
+import { getProfile } from "../services/index.ts";
 
 export const data = new SlashCommandBuilder()
     .setName("xp")
@@ -24,28 +23,23 @@ export async function execute(interaction: CommandInteraction) {
 
     const isSelf = user.id === interaction.user.id;
 
-      let userData: any = userProfileCache.get(user.id);
+    // Get user profile (using ProfileService)
+    const profileResult = await getProfile(user.id);
+    if (!profileResult) {
+        const embed = new EmbedBuilder()
+            .setTitle("❌ Profile Not Found")
+            .setColor(COLORS.ERROR)
+            .setDescription(isSelf ? "You need to create a profile first!" : `**${user.username}** doesn't have a farm yet.`);
 
-      if (!userData) {
-        const dbProfile = await database.findUser(user.id);
-        if (!dbProfile) {
-            const embed = new EmbedBuilder()
-                .setTitle("❌ Profile Not Found")
-                .setColor(COLORS.ERROR)
-                .setDescription(isSelf ? "You need to create a profile first!" : `**${user.username}** doesn't have a farm yet.`);
-
-            if (isSelf) {
-                const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
-                    BUTTONS.farmer()
-                );
-                return await interaction.editReply({ embeds: [embed], components: [buttons] });
-            }
-            return await interaction.editReply({ embeds: [embed] });
+        if (isSelf) {
+            const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
+                BUTTONS.farmer()
+            );
+            return await interaction.editReply({ embeds: [embed], components: [buttons] });
         }
-
-        userData = (dbProfile as any).toObject();
-        userProfileCache.set(user.id, userData);
+        return await interaction.editReply({ embeds: [embed] });
     }
+    let userData = profileResult.profile;
 
     const xp = userData?.xp || 0;
     const currentLevel = userData?.level || 1;

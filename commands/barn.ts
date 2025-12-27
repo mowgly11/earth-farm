@@ -1,13 +1,13 @@
 import { CommandInteraction, SlashCommandBuilder, MessageFlags, AttachmentBuilder, ButtonBuilder, ActionRowBuilder, EmbedBuilder } from "discord.js";
-import database from "../database/methods.ts";
-import { userProfileCache } from "../index.ts";
 import { join } from "path";
 import fs from "fs";
 import Canvas, { type Image } from "canvas";
 import getImage from "../utils/image_loading.ts";
 import { BUTTONS } from "../utils/buttons.ts";
 import { COLORS } from "../utils/constants.ts";
+import { logger } from "../utils/logger.ts";
 import { addBackButton } from "../utils/nav_history.ts";
+import { getProfile } from "../services/index.ts";
 
 let productsDir = join(__dirname, '../assets', 'products');
 let productsFiles = fs.readdirSync(productsDir);
@@ -28,7 +28,7 @@ async function ensureImagesLoaded(): Promise<void> {
                 const image = await getImage(join(productsDir, file));
                 imagesObj[file.replace(".png", "").replace(".jpeg", "")] = image;
             } catch (err) {
-                console.error(`Failed to load barn image: ${file}`, err);
+                logger.warn(`Failed to load barn image: ${file}`, { error: err });
             }
         }
         imagesLoaded = true;
@@ -59,30 +59,23 @@ export async function execute(interaction: CommandInteraction) {
     await ensureImagesLoaded();
 
 
-    let userProfile: any = userProfileCache.get(user.id);
+    // Get user profile (using ProfileService)
+    const profileResult = await getProfile(user.id);
+    if (!profileResult) {
+        const embed = new EmbedBuilder()
+            .setTitle("❌ Barn Not Found")
+            .setColor(COLORS.ERROR)
+            .setDescription(isSelf ? "You need to create a profile first!" : `**${user.username}** doesn't have a farm yet.`);
 
-    if (!userProfile) {
-        userProfile = await database.findUser(user.id);
-        if (!userProfile) {
-            const embed = new EmbedBuilder()
-                .setTitle("❌ Barn Not Found")
-                .setColor(COLORS.ERROR)
-                .setDescription(isSelf ? "You need to create a profile first!" : `**${user.username}** doesn't have a farm yet.`);
-
-            if (isSelf) {
-                const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
-                    BUTTONS.farmer()
-                );
-                return await interaction.editReply({ embeds: [embed], components: [buttons] });
-            }
-            return await interaction.editReply({ embeds: [embed] });
+        if (isSelf) {
+            const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
+                BUTTONS.farmer()
+            );
+            return await interaction.editReply({ embeds: [embed], components: [buttons] });
         }
-
-        // Convert Mongoose document to plain object before caching
-        const plainProfile = userProfile.toObject();
-        userProfileCache.set(user.id, plainProfile);
-        userProfile = plainProfile;
+        return await interaction.editReply({ embeds: [embed] });
     }
+    let userProfile = profileResult.profile;
 
     const canvas = Canvas.createCanvas(300, 300);
     const ctx = canvas.getContext("2d");
@@ -243,13 +236,13 @@ function getDimensions(productsCount: number): Dimensions {
     return dimensions;
 }
 
-function formatstorage(fields: Record<string, Array<Record<string, string | number>>>): Array<UserInfoFields> {
+function formatstorage(fields: any): Array<UserInfoFields> {
     let finalArray: Array<UserInfoFields> = [];
 
     const keys = Object.keys(fields);
     let currentFieldString = "";
     for (let i = 0; i < keys.length; i++) {
-        currentFieldString = fields[keys[i]].map(v => `${v.amount} ${v.name}`).join("\n");
+        currentFieldString = fields[keys[i]].map((v: any) => `${v.amount} ${v.name}`).join("\n");
         finalArray.push({
             name: keys[i].replace(/_/g, " "),
             value: currentFieldString === "" ? "No items here yet." : currentFieldString,

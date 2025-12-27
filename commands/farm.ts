@@ -1,6 +1,4 @@
 import { CommandInteraction, SlashCommandBuilder, MessageFlags, AttachmentBuilder, ButtonBuilder, ActionRowBuilder, EmbedBuilder } from "discord.js";
-import database from "../database/methods.ts";
-import { userProfileCache } from "../index.ts";
 import Canvas, { type Image } from "canvas";
 import { join } from "path";
 import fs from "fs";
@@ -8,8 +6,10 @@ import type { FarmCanvasProperties } from "../types/commands_types.ts";
 import getImage from "../utils/image_loading.ts";
 import { BUTTONS } from "../utils/buttons.ts";
 import { COLORS } from "../utils/constants.ts";
+import { logger } from "../utils/logger.ts";
 import { createNoProfileEmbed } from "../utils/onboarding.ts";
 import { addBackButton } from "../utils/nav_history.ts";
+import { getProfile } from "../services/index.ts";
 
 let assetsPath = join(__dirname, '../assets');
 let allDirectories = fs.readdirSync(assetsPath).filter((dir) => dir !== "products" && dir !== "cards");
@@ -34,7 +34,7 @@ async function ensureImagesLoaded(): Promise<void> {
                     const image = await getImage(join(assetsPath, dir, file));
                     imagesObj[file.replace(".png", "").replace(".jpeg", "")] = image;
                 } catch (err) {
-                    console.error(`Failed to load farm image: ${file}`, err);
+                    logger.warn(`Failed to load farm image: ${file}`, { error: err });
                 }
             }
         }
@@ -66,26 +66,21 @@ export async function execute(interaction: CommandInteraction) {
     // Ensure all images are loaded before proceeding
     await ensureImagesLoaded();
 
-    let userProfile: any = userProfileCache.get(user.id);
-
-    if (!userProfile) {
-        const dbProfile = await database.findUser(user.id);
-        if (!dbProfile) {
-            if (isSelf) {
-                // Rich onboarding embed for self
-                return await interaction.editReply(createNoProfileEmbed(user.id));
-            }
-            // Simple embed for viewing others
-            const embed = new EmbedBuilder()
-                .setTitle("❌ Farm Not Found")
-                .setColor(COLORS.ERROR)
-                .setDescription(`**${user.username}** doesn't have a farm yet.`);
-            return await interaction.editReply({ embeds: [embed] });
+    // Get user profile (using ProfileService)
+    const profileResult = await getProfile(user.id);
+    if (!profileResult) {
+        if (isSelf) {
+            // Rich onboarding embed for self
+            return await interaction.editReply(createNoProfileEmbed(user.id));
         }
-
-        userProfile = (dbProfile as any).toObject();
-        userProfileCache.set(user.id, userProfile);
+        // Simple embed for viewing others
+        const embed = new EmbedBuilder()
+            .setTitle("❌ Farm Not Found")
+            .setColor(COLORS.ERROR)
+            .setDescription(`**${user.username}** doesn't have a farm yet.`);
+        return await interaction.editReply({ embeds: [embed] });
     }
+    let userProfile = profileResult.profile;
 
     let farmProperties: FarmCanvasProperties = {
         barn: "level_1_barn",
@@ -95,14 +90,14 @@ export async function execute(interaction: CommandInteraction) {
 
     farmProperties.barn = `level_${userProfile.farm.level}_barn`;
 
-    farmProperties.crops = userProfile.farm.occupied_crop_slots.map((crop: Record<string, string | number>) => {
+    farmProperties.crops = userProfile.farm.occupied_crop_slots.map((crop: any) => {
         return {
             name: crop.gives,
             ready_at: crop.ready_at
         };
     });
 
-    farmProperties.animals = userProfile.farm.occupied_animal_slots.map((animal: Record<string, string | number>) => {
+    farmProperties.animals = userProfile.farm.occupied_animal_slots.map((animal: any) => {
         return {
             name: animal.name,
             ready_at: animal.ready_at

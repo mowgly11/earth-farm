@@ -45,7 +45,7 @@ A feature-rich Discord bot that brings farming simulation to your Discord server
 - **Caching**: Node-Cache for performance optimization
 - **Graphics**: Canvas for image generation
 - **Deployment**: Docker containerization
-- **Logging**: Pino for structured logging
+- **Logging**: Custom colored console logger with multiple levels
 
 ## 📦 Installation
 

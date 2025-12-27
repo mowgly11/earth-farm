@@ -2,7 +2,6 @@ import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, StringSelectMenuBuilder 
 import marketItems from "../config/items/market_items.json";
 import upgrades from "../config/upgrades/farms.json";
 import { COLORS } from "./constants.ts";
-import { BTN_STYLE } from "./button_handler.ts";
 import { VIEWS_MARKET_BUTTONS, BUTTONS } from "./buttons.ts";
 import { formatNumber, getRandomTip } from "./ux.ts";
 import { addBackButton } from "./nav_history.ts";

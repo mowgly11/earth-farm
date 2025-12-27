@@ -9,6 +9,7 @@ import { ERRORS, COLORS } from "../utils/constants.ts";
 import { createNoProfileEmbed } from "../utils/onboarding.ts";
 import { BUTTONS } from "../utils/buttons.ts";
 import { storageIndicator } from "../utils/ux.ts";
+import { getProfile, updateCache } from "../services/index.ts";
 
 export const data = new SlashCommandBuilder()
     .setName("unraise")
@@ -28,15 +29,11 @@ export async function execute(interaction: CommandInteraction) {
     const slot: number = Number(interaction.options.get("slot")?.value);
     const userId = interaction.user.id;
 
-      let userProfile: any = userProfileCache.get(userId);
-
-      if (!userProfile) {
-        const dbProfile = await database.findUser(userId);
-        if (!dbProfile) return await interaction.editReply(createNoProfileEmbed(interaction.user.id));
-
-        userProfile = (dbProfile as any).toObject();
-        userProfileCache.set(userId, userProfile);
-    }
+    // Get user profile (using ProfileService)
+    const profileResult = await getProfile(userId);
+    if (!profileResult) return await interaction.editReply(createNoProfileEmbed(interaction.user.id));
+    let userProfile = profileResult.profile;
+    const dbProfile = profileResult.dbProfile;
 
     // Check if slot exists and has an animal
     if (!userProfile.farm.occupied_animal_slots[slot - 1]) {
@@ -83,12 +80,7 @@ export async function execute(interaction: CommandInteraction) {
         return await interaction.editReply({ content: "An error occurred: animal configuration not found." });
     }
 
-    // Hydrate the cached profile into a Mongoose document
-    const dbProfile = schema.hydrate(JSON.parse(JSON.stringify(userProfile)));
-    if (!dbProfile) {
-        userProfileCache.del(userId);
-        return await interaction.editReply({ content: ERRORS.GENERIC });
-    }
+    // dbProfile already hydrated by ProfileService
 
     try {
         // Remove animal from farm (returns the removed animal)

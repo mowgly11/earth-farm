@@ -1,9 +1,21 @@
 {
-  "name": "bun-discord",
+  "name": "earth-farm-bot",
+  "version": "0.0.6",
+  "description": "Discord farming game bot - plant crops, raise animals, and trade with friends!",
+  "keywords": [
+    "discord",
+    "bot",
+    "farming",
+    "game"
+  ],
   "module": "index.ts",
   "type": "module",
   "scripts": {
-    "bot": "bun run --watch index.ts"
+    "bot": "bun run --watch index.ts",
+    "start": "bun run index.ts",
+    "typecheck": "tsc --noEmit --skipLibCheck",
+    "test": "bun test",
+    "test:watch": "bun test --watch"
   },
   "devDependencies": {
     "@types/bun": "latest"
@@ -12,11 +24,9 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "@hapi/boom": "^10.0.1",
     "canvas": "^3.1.0",
     "discord.js": "^14.17.3",
     "mongoose": "^8.9.6",
-    "node-cache": "^5.1.2",
-    "pino": "^9.1.0"
+    "node-cache": "^5.1.2"
   }
 }

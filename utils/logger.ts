@@ -250,5 +250,20 @@ export const logger = {
     }
 };
 
+/**
+ * Silent catch handler for expected failures (deleted messages, expired interactions)
+ * Logs at debug level only - use for Discord API calls that may legitimately fail
+ * @param context - Description of what operation was attempted
+ */
+export function silentCatch(context: string) {
+    return (error: any) => {
+        if (process.env.LOG_LEVEL === 'debug') {
+            const code = error?.code || 'UNKNOWN';
+            const msg = error?.message || String(error);
+            console.log(formatMessage('debug', `[Silent] ${context}: ${code} - ${msg}`));
+        }
+    };
+}
+
 // Export individual functions for convenience
 export const { debug, info, warn, error, cmd, btn, select, action, econ, perf, banner, ready, divider, success, loading } = logger;

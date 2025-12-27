@@ -5,7 +5,6 @@
 
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder } from "discord.js";
 import { COLORS } from "./constants.ts";
-import { BTN_STYLE } from "./button_handler.ts";
 import { BUTTONS } from "./buttons.ts";
 
 /**

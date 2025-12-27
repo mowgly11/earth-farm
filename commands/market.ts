@@ -7,7 +7,8 @@ import { COLORS, ERRORS } from "../utils/constants.ts";
 import { createNoProfileEmbed } from "../utils/onboarding.ts";
 import { formatNumber, getRandomTip } from "../utils/ux.ts";
 import { BTN_STYLE, parseButtonId, isButtonOwner } from "../utils/button_handler.ts";
-import { MARKET_BUTTONS } from "../utils/buttons.ts";
+import { MARKET_BUTTONS, BUTTONS } from "../utils/buttons.ts";
+import { getProfile } from "../services/index.ts";
 
 export const data = new SlashCommandBuilder()
     .setName("market")
@@ -16,14 +17,10 @@ export const data = new SlashCommandBuilder()
 export async function execute(interaction: CommandInteraction) {
     const userId = interaction.user.id;
 
-    // Get user profile for gold display
-    let userProfile: any = userProfileCache.get(userId);
-    if (!userProfile) {
-        const dbProfile = await database.findUser(userId);
-        if (!dbProfile) return await interaction.reply({ ...createNoProfileEmbed(userId), flags: MessageFlags.Ephemeral });
-        userProfile = (dbProfile as any).toObject();
-        userProfileCache.set(userId, userProfile);
-    }
+    // Get user profile (using ProfileService)
+    const profileResult = await getProfile(userId);
+    if (!profileResult) return await interaction.reply({ ...createNoProfileEmbed(userId), flags: MessageFlags.Ephemeral });
+    let userProfile = profileResult.profile;
 
     // Track selected item
     let selectedItem: any = null;
@@ -150,12 +147,13 @@ function createMarketView(category: string, gold: number, selectedItem: any, use
     const animals = marketItems.filter(item => item.type === "animals");
     const seeds = marketItems.filter(item => item.type === "seeds");
 
-    // Category buttons
+    // Category buttons + dashboard
     const categoryRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
         MARKET_BUTTONS.home(category === "main"),
         MARKET_BUTTONS.animals(category === "animals"),
         MARKET_BUTTONS.seeds(category === "seeds"),
-        MARKET_BUTTONS.upgrades(category === "upgrades")
+        MARKET_BUTTONS.upgrades(category === "upgrades"),
+        BUTTONS.dashboard()
     );
 
     const components: any[] = [categoryRow];

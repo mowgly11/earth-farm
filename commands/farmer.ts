@@ -5,6 +5,7 @@ import Canvas from "canvas";
 import path from "path";
 import { BUTTONS } from "../utils/buttons.ts";
 import { COLORS } from "../utils/constants.ts";
+import { getProfile, updateCache } from "../services/index.ts";
 
 Canvas.registerFont(path.join(__dirname, "../fonts", "lumber.ttf"), { family: 'CustomFont' });
 
@@ -38,60 +39,52 @@ export async function execute(interaction: CommandInteraction) {
 
   if (mentionedUser) {
     discordUser = mentionedUser;
-    let userProfile: any = userProfileCache.get(mentionedUser.id);
 
-    if (!userProfile) {
-      const dbProfile = await database.findUser(mentionedUser.id);
-      if (!dbProfile) {
-        const embed = new EmbedBuilder()
-          .setTitle("❌ Profile Not Found")
-          .setColor(COLORS.ERROR)
-          .setDescription(`**${mentionedUser.username}** doesn't have a farm yet.`);
-        return await interaction.editReply({ embeds: [embed] });
-      }
-
-      userProfile = (dbProfile as any).toObject();
-      userProfileCache.set(mentionedUser.id, userProfile);
+    // Get profile for mentioned user (using ProfileService)
+    const profileResult = await getProfile(mentionedUser.id);
+    if (!profileResult) {
+      const embed = new EmbedBuilder()
+        .setTitle("❌ Profile Not Found")
+        .setColor(COLORS.ERROR)
+        .setDescription(`**${mentionedUser.username}** doesn't have a farm yet.`);
+      return await interaction.editReply({ embeds: [embed] });
     }
-    user = userProfile;
+    user = profileResult.profile;
   } else {
     discordUser = interaction.user;
     const username = interaction.user?.username;
 
     if (discordUser.id) {
-      let userProfile: any = userProfileCache.get(discordUser.id);
+      // Try to get profile (using ProfileService)
+      const profileResult = await getProfile(discordUser.id);
 
-      if (!userProfile) {
-        const dbProfile = await database.findUser(discordUser.id);
-        if (!dbProfile) {
-          const newUser = await database.createUser(discordUser.id, username);
-          if (newUser) {
-            userProfile = (newUser as any).toObject();
-            userProfileCache.set(discordUser.id, userProfile);
+      if (!profileResult) {
+        // Profile doesn't exist - create new user
+        const newUser = await database.createUser(discordUser.id, username);
+        if (newUser) {
+          const userProfile = (newUser as any).toObject();
+          updateCache(discordUser.id, userProfile);
 
-            // Welcome message with buttons
-            const embed = new EmbedBuilder()
-              .setTitle("🌾 Welcome to Earth Farm!")
-              .setColor(COLORS.SUCCESS)
-              .setDescription(`Hey there **${interaction.user.username}**! Your farm has been created. Let's get started!`)
-              .addFields(
-                { name: "🎁 First Step", value: "Claim your daily reward!", inline: false }
-              );
-
-            const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
-              BUTTONS.claimDaily(),
-              BUTTONS.dashboard().setStyle(1) // PRIMARY
+          // Welcome message with buttons
+          const embed = new EmbedBuilder()
+            .setTitle("🌾 Welcome to Earth Farm!")
+            .setColor(COLORS.SUCCESS)
+            .setDescription(`Hey there **${interaction.user.username}**! Your farm has been created. Let's get started!`)
+            .addFields(
+              { name: "🎁 First Step", value: "Claim your daily reward!", inline: false }
             );
 
-            return await interaction.editReply({ embeds: [embed], components: [buttons] });
-          }
-          return await interaction.editReply({ content: "An error occurred" });
-        }
+          const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
+            BUTTONS.claimDaily(),
+            BUTTONS.dashboard().setStyle(1) // PRIMARY
+          );
 
-        userProfile = (dbProfile as any).toObject();
-        userProfileCache.set(discordUser.id, userProfile);
+          return await interaction.editReply({ embeds: [embed], components: [buttons] });
+        }
+        return await interaction.editReply({ content: "An error occurred" });
       }
-      user = userProfile;
+
+      user = profileResult.profile;
     }
   }
 

@@ -12,10 +12,11 @@ import { createLeaderboardEmbed, createPaginationButtons, USERS_PER_PAGE, type U
 import levels from "../config/data/levels.json";
 import marketItems from "../config/items/market_items.json";
 import actions from "../config/data/actions.json";
-import { logger } from "../utils/logger.ts";
+import { logger, silentCatch } from "../utils/logger.ts";
 import { createFarmView } from "./farm.ts";
 import { createBarnView } from "./barn.ts";
 import { addBackButton, pushView } from "../utils/nav_history.ts";
+import { getProfile, updateCache } from "../services/index.ts";
 
 export const data = new SlashCommandBuilder()
     .setName("dashboard")
@@ -28,22 +29,24 @@ export async function execute(interaction: CommandInteraction) {
     const username = interaction.user.username;
     const avatar = interaction.user.displayAvatarURL({ size: 128 });
 
-    // Get user profile
-    let userProfile: any = userProfileCache.get(userId);
-    if (!userProfile) {
-        const dbProfile = await database.findUser(userId);
-        if (!dbProfile) {
-            // Show rich welcome embed with "Create Farm" button
-            const welcome = createNoProfileEmbed(userId);
-            return await interaction.editReply(welcome);
-        }
-        userProfile = (dbProfile as any).toObject();
-        userProfileCache.set(userId, userProfile);
+    // Get user profile (using ProfileService)
+    const profileResult = await getProfile(userId);
+    if (!profileResult) {
+        // Show rich welcome embed with "Create Farm" button
+        const welcome = createNoProfileEmbed(userId);
+        return await interaction.editReply(welcome);
     }
+    const userProfile = profileResult.profile;
 
     // Show main dashboard view
     const { embed, components } = createMainView(userProfile, username, avatar, userId);
     const response = await interaction.editReply({ embeds: [embed], components });
+
+    // TODO: REFACTORING OPPORTUNITY
+    // This collector (lines 51-433) shares ~90% logic with setupDashboardCollector (lines 448-813)
+    // Consider extracting into a shared handleDashboardButton() function
+    // Both handle: view:, care:, action: buttons identically
+    // Blocked by: No test coverage for dashboard functionality
 
     // Create collector
     const collector = response.createMessageComponentCollector({
@@ -75,15 +78,16 @@ export async function execute(interaction: CommandInteraction) {
         const { action, subaction } = parseButtonId(i.customId);
 
         try {
-            // Fetch fresh profile
-            const dbProfile = await database.findUser(userId);
-            if (!dbProfile) {
+            // Fetch profile (using ProfileService)
+            const freshResult = await getProfile(userId);
+            if (!freshResult) {
                 const welcome = createNoProfileEmbed(userId);
                 await i.update({ ...welcome });
                 return;
             }
 
-            let currentProfile = (dbProfile as any).toObject();
+            let currentProfile = freshResult.profile;
+            const dbProfile = freshResult.dbProfile; // For database saves
             const now = Date.now();
             const messageId = i.message?.id; // For back button support
 
@@ -110,7 +114,7 @@ export async function execute(interaction: CommandInteraction) {
                         // Ready - execute and update dashboard
                         await i.deferUpdate();
                         const result = await executeDailyAction(currentProfile, dbProfile, userId);
-                        const view = createResultView(result.embed, userId, "🎁");
+                        const view = createResultView(result.embed, userId, "🎁", messageId);
                         await i.editReply({ embeds: [view.embed], components: view.components });
                         break;
                     }
@@ -420,7 +424,7 @@ export async function execute(interaction: CommandInteraction) {
             await i.update({
                 embeds: [new EmbedBuilder().setTitle("❌ Error").setColor(COLORS.ERROR).setDescription("Something went wrong. Try again!")],
                 components: [createBackRow(userId)]
-            }).catch(() => { });
+            }).catch(silentCatch('dashboard:collector:errorUpdate'));
         }
     });
 
@@ -430,7 +434,7 @@ export async function execute(interaction: CommandInteraction) {
         disabledView.components.forEach(row => {
             row.components.forEach(btn => btn.setDisabled(true));
         });
-        await interaction.editReply({ components: disabledView.components }).catch(() => { });
+        await interaction.editReply({ components: disabledView.components }).catch(silentCatch('dashboard:collector:end'));
     });
 }
 
@@ -463,15 +467,16 @@ export function setupDashboardCollector(
         const { action, subaction } = parseButtonId(i.customId);
 
         try {
-            // Fetch fresh profile
-            const dbProfile = await database.findUser(userId);
-            if (!dbProfile) {
+            // Fetch profile (using ProfileService)
+            const freshResult = await getProfile(userId);
+            if (!freshResult) {
                 const welcome = createNoProfileEmbed(userId);
                 await i.update({ ...welcome });
                 return;
             }
 
-            let currentProfile = (dbProfile as any).toObject();
+            let currentProfile = freshResult.profile;
+            const dbProfile = freshResult.dbProfile;
             const now = Date.now();
             const messageId = i.message?.id; // For back button support
 
@@ -792,20 +797,20 @@ export function setupDashboardCollector(
             await i.update({
                 embeds: [new EmbedBuilder().setTitle("❌ Error").setColor(COLORS.ERROR).setDescription("Something went wrong. Try again!")],
                 components: [createBackRow(userId)]
-            }).catch(() => { });
+            }).catch(silentCatch('dashboard:setup:errorUpdate'));
         }
     });
 
     collector.on("end", async () => {
         try {
-            const dbProfile = await database.findUser(userId);
-            if (dbProfile) {
-                const profile = (dbProfile as any).toObject();
+            const result = await getProfile(userId);
+            if (result) {
+                const profile = result.profile;
                 const disabledView = createMainView(profile, username, avatar, userId);
                 disabledView.components.forEach(row => {
                     row.components.forEach(btn => btn.setDisabled(true));
                 });
-                await message.edit({ components: disabledView.components }).catch(() => { });
+                await message.edit({ components: disabledView.components }).catch(silentCatch('dashboard:setup:end'));
             }
         } catch { }
     });
