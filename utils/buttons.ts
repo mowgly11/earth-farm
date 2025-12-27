@@ -95,6 +95,13 @@ export const BUTTONS = {
         .setEmoji("❓")
         .setStyle(BTN_STYLE.SECONDARY),
 
+    // Back navigation button (message-scoped for history isolation)
+    backHistory: (userId: string, messageId: string) => new ButtonBuilder()
+        .setCustomId(`nav:back:${userId}:${messageId}`)
+        .setLabel("← Back")
+        .setEmoji("↩️")
+        .setStyle(BTN_STYLE.SECONDARY),
+
     createFarm: (userId: string) => new ButtonBuilder()
         .setCustomId(`onboard:create:${userId}`)
         .setLabel("Create My Farm")

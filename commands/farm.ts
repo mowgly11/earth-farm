@@ -9,6 +9,7 @@ import getImage from "../utils/image_loading.ts";
 import { BUTTONS } from "../utils/buttons.ts";
 import { COLORS } from "../utils/constants.ts";
 import { createNoProfileEmbed } from "../utils/onboarding.ts";
+import { addBackButton } from "../utils/nav_history.ts";
 
 let assetsPath = join(__dirname, '../assets');
 let allDirectories = fs.readdirSync(assetsPath).filter((dir) => dir !== "products" && dir !== "cards");
@@ -65,9 +66,9 @@ export async function execute(interaction: CommandInteraction) {
     // Ensure all images are loaded before proceeding
     await ensureImagesLoaded();
 
-      let userProfile: any = userProfileCache.get(user.id);
+    let userProfile: any = userProfileCache.get(user.id);
 
-      if (!userProfile) {
+    if (!userProfile) {
         const dbProfile = await database.findUser(user.id);
         if (!dbProfile) {
             if (isSelf) {
@@ -82,7 +83,7 @@ export async function execute(interaction: CommandInteraction) {
             return await interaction.editReply({ embeds: [embed] });
         }
 
-            userProfile = (dbProfile as any).toObject();
+        userProfile = (dbProfile as any).toObject();
         userProfileCache.set(user.id, userProfile);
     }
 
@@ -179,6 +180,111 @@ export async function execute(interaction: CommandInteraction) {
     }
 
     await interaction.editReply({ content: farmInfo, files: [attachment] });
+}
+
+/**
+ * Creates a farm view with canvas image - reusable for nav:farm button
+ * Returns the attachment, content, and buttons for the farm view
+ */
+export async function createFarmView(userProfile: any, username: string, userId: string, messageId?: string): Promise<{
+    content: string;
+    attachment: AttachmentBuilder;
+    components: ActionRowBuilder<ButtonBuilder>[];
+}> {
+    // Ensure all images are loaded before proceeding
+    await ensureImagesLoaded();
+
+    let farmProperties: FarmCanvasProperties = {
+        barn: "level_1_barn",
+        crops: [],
+        animals: []
+    };
+
+    farmProperties.barn = `level_${userProfile.farm.level}_barn`;
+
+    farmProperties.crops = userProfile.farm.occupied_crop_slots.map((crop: Record<string, string | number>) => {
+        return {
+            name: crop.gives,
+            ready_at: crop.ready_at
+        };
+    });
+
+    farmProperties.animals = userProfile.farm.occupied_animal_slots.map((animal: Record<string, string | number>) => {
+        return {
+            name: animal.name,
+            ready_at: animal.ready_at
+        };
+    });
+
+    const canvas = Canvas.createCanvas(300, 300);
+    const ctx = canvas.getContext("2d");
+
+    ctx.drawImage(imagesObj["base"], 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(imagesObj[farmProperties.barn], 165, 10, 120, 130);
+
+    let lastDrawnCropXandY = [170, 150];
+    let lastDrawnAnimalXandY = [25, 170];
+
+    if (farmProperties.crops.length > 0) {
+        for (let i = 0; i < farmProperties.crops.length; i++) {
+            const crop = farmProperties.crops[i];
+            let cropImg: Image;
+
+            if (Date.now() > crop.ready_at) cropImg = imagesObj[`full_${crop.name.toLowerCase().replace(" ", "")}`];
+            else cropImg = imagesObj[`started_${crop.name.toLowerCase().replace(" ", "")}`];
+
+            let cropX = lastDrawnCropXandY[0];
+            let cropY = lastDrawnCropXandY[1];
+
+            if (i > 0 && i % 4 === 0) {
+                cropX = 170;
+                cropY += 25;
+            }
+
+            ctx.drawImage(cropImg, cropX, cropY, 25, 25);
+            lastDrawnCropXandY = [cropX + 30, cropY];
+        }
+    }
+
+    if (farmProperties.animals.length > 0) {
+        for (let i = 0; i < farmProperties.animals.length; i++) {
+            const animal = farmProperties.animals[i];
+            let animalImg: Image;
+            if (Date.now() > animal.ready_at) animalImg = imagesObj[`ready_${animal.name.split(" ").join("").toLowerCase()}`];
+            else animalImg = imagesObj[`${animal.name.split(" ").join("").toLowerCase()}`];
+
+            let animalX = lastDrawnAnimalXandY[0];
+            let animalY = lastDrawnAnimalXandY[1];
+
+            if (i > 0 && i % 3 === 0) {
+                animalX = 25;
+                animalY += 32;
+            }
+
+            ctx.drawImage(animalImg, animalX, animalY, 25, 30);
+            lastDrawnAnimalXandY = [animalX + 35, animalY];
+        }
+    }
+
+    const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: "farm.png" });
+    const farmInfo = stringifySlots(userProfile.farm) + "Here is a picture of " + username + "'s farm";
+
+    // Navigation buttons
+    const hasReadyCrops = farmProperties.crops.some((c: any) => Date.now() > c.ready_at);
+    const hasReadyAnimals = farmProperties.animals.some((a: any) => Date.now() > a.ready_at);
+    const hasReady = hasReadyCrops || hasReadyAnimals;
+
+    const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        BUTTONS.harvest().setStyle(hasReady ? 3 : 2),
+        BUTTONS.plant(),
+        BUTTONS.dashboard()
+    );
+
+    return {
+        content: farmInfo,
+        attachment,
+        components: addBackButton([buttons], userId, messageId)
+    };
 }
 
 function stringifySlots(farmDetails: any) {

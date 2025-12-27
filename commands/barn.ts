@@ -7,6 +7,7 @@ import Canvas, { type Image } from "canvas";
 import getImage from "../utils/image_loading.ts";
 import { BUTTONS } from "../utils/buttons.ts";
 import { COLORS } from "../utils/constants.ts";
+import { addBackButton } from "../utils/nav_history.ts";
 
 let productsDir = join(__dirname, '../assets', 'products');
 let productsFiles = fs.readdirSync(productsDir);
@@ -57,10 +58,10 @@ export async function execute(interaction: CommandInteraction) {
     // Ensure all images are loaded before proceeding
     await ensureImagesLoaded();
 
-  
+
     let userProfile: any = userProfileCache.get(user.id);
 
-      if (!userProfile) {
+    if (!userProfile) {
         userProfile = await database.findUser(user.id);
         if (!userProfile) {
             const embed = new EmbedBuilder()
@@ -142,6 +143,77 @@ Here is a picture of your barn:
     }
 
     return await interaction.editReply({ content: textMessage, files: [attachment] });
+}
+
+/**
+ * Creates a barn view with canvas image - reusable for nav:barn button
+ * Returns the attachment, content, and buttons for the barn view
+ */
+export async function createBarnView(userProfile: any, username: string, userId: string, messageId?: string): Promise<{
+    content: string;
+    attachment: AttachmentBuilder;
+    components: ActionRowBuilder<ButtonBuilder>[];
+}> {
+    // Ensure all images are loaded before proceeding
+    await ensureImagesLoaded();
+
+    const canvas = Canvas.createCanvas(300, 300);
+    const ctx = canvas.getContext("2d");
+
+    ctx.drawImage(imagesObj['barn_interior_base'], 0, 0, canvas.width, canvas.height);
+
+    let dimensions = getDimensions(userProfile.storage.products.length);
+    let lastDrawnCropXandY = [dimensions.startXAxis, dimensions.startYAxis];
+
+    if (userProfile.storage.products.length > 0) {
+        for (let i = 0; i < userProfile.storage.products.length; i++) {
+            const product = userProfile.storage.products[i];
+            const productImage = imagesObj[`${product.name.split(" ").join("").toLowerCase()}_bag`];
+
+            if (i > 0 && i % dimensions.prodsPerShelf === 0) {
+                lastDrawnCropXandY[0] = dimensions.startXAxis;
+                lastDrawnCropXandY[1] += dimensions.additionYAxis;
+            }
+
+            ctx.drawImage(productImage, lastDrawnCropXandY[0], lastDrawnCropXandY[1], dimensions.imageWidth, dimensions.imageHeight);
+            lastDrawnCropXandY[0] += dimensions.additionXAxis;
+        }
+    }
+
+    const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: "barn.png" });
+
+    let storageCount = 0;
+    userProfile.storage.market_items.forEach((v: any) => storageCount += v.amount);
+    userProfile.storage.products.forEach((v: any) => storageCount += v.amount);
+
+    const storage = formatstorage(userProfile.storage);
+    const formattedStorage = storage.map(item => `• **${item.name}**:\n${item.value}`).join('\n');
+
+    const textMessage = `
+🏭 **${username}'s Barn**
+
+🟡 **Storage:** **${storageCount}/${userProfile.farm.storage_limit}** slots used
+
+${formattedStorage}
+
+Here is a picture of your barn:
+`;
+
+    // Navigation buttons
+    const hasProducts = userProfile.storage.products.length > 0;
+    const hasAnimals = userProfile.farm.occupied_animal_slots?.length > 0;
+
+    const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        BUTTONS.harvest().setStyle(hasAnimals ? 3 : 2),
+        BUTTONS.sell().setStyle(hasProducts ? 3 : 2),
+        BUTTONS.dashboard()
+    );
+
+    return {
+        content: textMessage,
+        attachment,
+        components: addBackButton([buttons], userId, messageId)
+    };
 }
 
 function getDimensions(productsCount: number): Dimensions {

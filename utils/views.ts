@@ -5,6 +5,7 @@ import { COLORS } from "./constants.ts";
 import { BTN_STYLE } from "./button_handler.ts";
 import { VIEWS_MARKET_BUTTONS, BUTTONS } from "./buttons.ts";
 import { formatNumber, getRandomTip } from "./ux.ts";
+import { addBackButton } from "./nav_history.ts";
 
 // Emoji mapping for items
 const itemEmojis: Record<string, string> = {
@@ -45,7 +46,7 @@ function getItemEmoji(name: string, type: string): string {
  * Create the market view embed and components
  * Can be used both by /market command and nav:market button
  */
-export function createMarketView(category: string, gold: number, selectedItem: any, userId: string) {
+export function createMarketView(category: string, gold: number, selectedItem: any, userId: string, messageId?: string) {
     const animals = marketItems.filter(item => item.type === "animals");
     const seeds = marketItems.filter(item => item.type === "seeds");
 
@@ -153,5 +154,5 @@ export function createMarketView(category: string, gold: number, selectedItem: a
     const navRow = new ActionRowBuilder<ButtonBuilder>().addComponents(BUTTONS.dashboard());
     components.push(navRow);
 
-    return { embeds: [embed], components };
+    return { embeds: [embed], components: addBackButton(components, userId, messageId) };
 }

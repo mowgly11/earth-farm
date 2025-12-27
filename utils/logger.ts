@@ -29,7 +29,7 @@ const COLORS = {
 };
 
 // Log level configuration
-type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'cmd';
+type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'cmd' | 'btn' | 'select' | 'action' | 'econ' | 'perf';
 
 interface LogConfig {
     emoji: string;
@@ -38,11 +38,16 @@ interface LogConfig {
 }
 
 const LOG_LEVELS: Record<LogLevel, LogConfig> = {
-    debug: { emoji: '🔍', color: COLORS.gray, label: 'DEBUG' },
-    info: { emoji: '📢', color: COLORS.cyan, label: 'INFO ' },
-    warn: { emoji: '⚠️ ', color: COLORS.yellow, label: 'WARN ' },
-    error: { emoji: '❌', color: COLORS.red, label: 'ERROR' },
-    cmd: { emoji: '⚡', color: COLORS.magenta, label: 'CMD  ' },
+    debug: { emoji: '🔍', color: COLORS.gray, label: 'DEBUG ' },
+    info: { emoji: '📢', color: COLORS.cyan, label: 'INFO  ' },
+    warn: { emoji: '⚠️ ', color: COLORS.yellow, label: 'WARN  ' },
+    error: { emoji: '❌', color: COLORS.red, label: 'ERROR ' },
+    cmd: { emoji: '⚡', color: COLORS.magenta, label: 'CMD   ' },
+    btn: { emoji: '🔘', color: COLORS.blue, label: 'BTN   ' },
+    select: { emoji: '📋', color: COLORS.blue, label: 'SELECT' },
+    action: { emoji: '🎯', color: COLORS.green, label: 'ACTION' },
+    econ: { emoji: '💰', color: COLORS.yellow, label: 'ECON  ' },
+    perf: { emoji: '⏱️ ', color: COLORS.cyan, label: 'PERF  ' },
 };
 
 /**
@@ -149,6 +154,50 @@ export const logger = {
     },
 
     /**
+     * Button click logging
+     */
+    btn(customId: string, userId: string, guildName?: string) {
+        const meta: Record<string, any> = { user: userId };
+        if (guildName) meta.guild = guildName;
+        console.log(formatMessage('btn', `[Button] ${customId}`, meta));
+    },
+
+    /**
+     * Select menu logging
+     */
+    select(menuId: string, value: string, userId: string, guildName?: string) {
+        const meta: Record<string, any> = { user: userId, value };
+        if (guildName) meta.guild = guildName;
+        console.log(formatMessage('select', `[Select] ${menuId}`, meta));
+    },
+
+    /**
+     * Game action logging (harvest, daily, scratch, etc.)
+     */
+    action(actionName: string, userId: string, result: 'success' | 'fail', meta?: Record<string, any>) {
+        const resultLabel = result === 'success' ? 'SUCCESS' : 'FAIL';
+        console.log(formatMessage('action', `[${resultLabel}] ${actionName}`, { user: userId, ...meta }));
+    },
+
+    /**
+     * Economy change logging (gold/XP with before→after)
+     */
+    econ(type: 'gold' | 'xp', userId: string, change: number, before: number, after: number, reason?: string) {
+        const sign = change >= 0 ? '+' : '';
+        const typeLabel = type.toUpperCase();
+        const meta: Record<string, any> = { user: userId };
+        if (reason) meta.reason = reason;
+        console.log(formatMessage('econ', `${typeLabel} ${sign}${change} (${before} → ${after})`, meta));
+    },
+
+    /**
+     * Performance timing logging
+     */
+    perf(operation: string, durationMs: number, meta?: Record<string, any>) {
+        console.log(formatMessage('perf', `${operation} ${durationMs}ms`, meta));
+    },
+
+    /**
      * Bot startup banner
      */
     banner() {
@@ -202,4 +251,4 @@ export const logger = {
 };
 
 // Export individual functions for convenience
-export const { debug, info, warn, error, cmd, banner, ready, divider, success, loading } = logger;
+export const { debug, info, warn, error, cmd, btn, select, action, econ, perf, banner, ready, divider, success, loading } = logger;

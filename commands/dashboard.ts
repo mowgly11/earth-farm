@@ -12,6 +12,10 @@ import { createLeaderboardEmbed, createPaginationButtons, USERS_PER_PAGE, type U
 import levels from "../config/data/levels.json";
 import marketItems from "../config/items/market_items.json";
 import actions from "../config/data/actions.json";
+import { logger } from "../utils/logger.ts";
+import { createFarmView } from "./farm.ts";
+import { createBarnView } from "./barn.ts";
+import { addBackButton, pushView } from "../utils/nav_history.ts";
 
 export const data = new SlashCommandBuilder()
     .setName("dashboard")
@@ -81,6 +85,7 @@ export async function execute(interaction: CommandInteraction) {
 
             let currentProfile = (dbProfile as any).toObject();
             const now = Date.now();
+            const messageId = i.message?.id; // For back button support
 
             // Handle different views
             if (action === "view") {
@@ -219,25 +224,28 @@ export async function execute(interaction: CommandInteraction) {
                         // Ready - execute and update dashboard
                         await i.deferUpdate();
                         const result = await executeHarvestAction(currentProfile, dbProfile, userId);
-                        const view = createResultView(result.embed, userId, "🌾");
+                        const view = createResultView(result.embed, userId, "🌾", messageId);
                         await i.editReply({ embeds: [view.embed], components: view.components });
                         break;
                     }
 
                     case "profile": {
-                        const view = createProfileView(currentProfile, username, avatar, userId);
+                        if (messageId) pushView(userId, messageId, 'dashboard');
+                        const view = createProfileView(currentProfile, username, avatar, userId, messageId);
                         await i.update({ embeds: [view.embed], components: view.components });
                         break;
                     }
 
                     case "market": {
-                        const view = createMarketView(currentProfile, userId);
+                        if (messageId) pushView(userId, messageId, 'dashboard');
+                        const view = createMarketView(currentProfile, userId, messageId);
                         await i.update({ embeds: [view.embed], components: view.components });
                         break;
                     }
 
                     case "storage": {
-                        const view = createStorageView(currentProfile, userId);
+                        if (messageId) pushView(userId, messageId, 'dashboard');
+                        const view = createStorageView(currentProfile, userId, messageId);
                         await i.update({ embeds: [view.embed], components: view.components });
                         break;
                     }
@@ -265,13 +273,14 @@ export async function execute(interaction: CommandInteraction) {
                         // Execute sell all and show result
                         await i.deferUpdate();
                         const result = await executeSellAction(currentProfile, dbProfile, userId);
-                        const view = createResultView(result.embed, userId, "💰");
+                        const view = createResultView(result.embed, userId, "💰", messageId);
                         await i.editReply({ embeds: [view.embed], components: view.components });
                         break;
                     }
 
                     case "upgrade": {
-                        const view = createUpgradeView(currentProfile, userId);
+                        if (messageId) pushView(userId, messageId, 'dashboard');
+                        const view = createUpgradeView(currentProfile, userId, messageId);
                         await i.update({ embeds: [view.embed], components: view.components });
                         break;
                     }
@@ -308,8 +317,24 @@ export async function execute(interaction: CommandInteraction) {
                         break;
                     }
 
+                    case "farm": {
+                        // Show actual farm canvas image inline
+                        await i.deferUpdate();
+                        const farmView = await createFarmView(currentProfile, username, userId, messageId);
+                        await i.editReply({ content: farmView.content, embeds: [], files: [farmView.attachment], components: farmView.components });
+                        break;
+                    }
+
+                    case "barn": {
+                        // Show actual barn canvas image inline
+                        await i.deferUpdate();
+                        const barnView = await createBarnView(currentProfile, username, userId, messageId);
+                        await i.editReply({ content: barnView.content, embeds: [], files: [barnView.attachment], components: barnView.components });
+                        break;
+                    }
+
                     default: {
-                        // Navigate to slash command
+                        // Navigate to slash command (fallback for unknown nav targets)
                         const navView = createNavView(subaction, userId);
                         await i.update({ embeds: [navView.embed], components: navView.components });
                     }
@@ -448,6 +473,7 @@ export function setupDashboardCollector(
 
             let currentProfile = (dbProfile as any).toObject();
             const now = Date.now();
+            const messageId = i.message?.id; // For back button support
 
             // Handle different views
             if (action === "view") {
@@ -471,7 +497,7 @@ export function setupDashboardCollector(
                         // Ready - execute and update dashboard
                         await i.deferUpdate();
                         const result = await executeDailyAction(currentProfile, dbProfile, userId);
-                        const view = createResultView(result.embed, userId, "🎁");
+                        const view = createResultView(result.embed, userId, "🎁", messageId);
                         await i.editReply({ embeds: [view.embed], components: view.components });
                         break;
                     }
@@ -583,25 +609,28 @@ export function setupDashboardCollector(
 
                         await i.deferUpdate();
                         const result = await executeHarvestAction(currentProfile, dbProfile, userId);
-                        const view = createResultView(result.embed, userId, "🌾");
+                        const view = createResultView(result.embed, userId, "🌾", messageId);
                         await i.editReply({ embeds: [view.embed], components: view.components });
                         break;
                     }
 
                     case "profile": {
-                        const view = createProfileView(currentProfile, username, avatar, userId);
+                        if (messageId) pushView(userId, messageId, 'dashboard');
+                        const view = createProfileView(currentProfile, username, avatar, userId, messageId);
                         await i.update({ embeds: [view.embed], components: view.components });
                         break;
                     }
 
                     case "market": {
-                        const view = createMarketView(currentProfile, userId);
+                        if (messageId) pushView(userId, messageId, 'dashboard');
+                        const view = createMarketView(currentProfile, userId, messageId);
                         await i.update({ embeds: [view.embed], components: view.components });
                         break;
                     }
 
                     case "storage": {
-                        const view = createStorageView(currentProfile, userId);
+                        if (messageId) pushView(userId, messageId, 'dashboard');
+                        const view = createStorageView(currentProfile, userId, messageId);
                         await i.update({ embeds: [view.embed], components: view.components });
                         break;
                     }
@@ -627,13 +656,14 @@ export function setupDashboardCollector(
 
                         await i.deferUpdate();
                         const result = await executeSellAction(currentProfile, dbProfile, userId);
-                        const view = createResultView(result.embed, userId, "💰");
+                        const view = createResultView(result.embed, userId, "💰", messageId);
                         await i.editReply({ embeds: [view.embed], components: view.components });
                         break;
                     }
 
                     case "upgrade": {
-                        const view = createUpgradeView(currentProfile, userId);
+                        if (messageId) pushView(userId, messageId, 'dashboard');
+                        const view = createUpgradeView(currentProfile, userId, messageId);
                         await i.update({ embeds: [view.embed], components: view.components });
                         break;
                     }
@@ -664,6 +694,22 @@ export function setupDashboardCollector(
                         } catch (err) {
                             await i.editReply({ content: "Failed to load leaderboard.", embeds: [], components: createActionButtons(userId) });
                         }
+                        break;
+                    }
+
+                    case "farm": {
+                        // Show actual farm canvas image inline
+                        await i.deferUpdate();
+                        const farmView = await createFarmView(currentProfile, username, userId, messageId);
+                        await i.editReply({ content: farmView.content, embeds: [], files: [farmView.attachment], components: farmView.components });
+                        break;
+                    }
+
+                    case "barn": {
+                        // Show actual barn canvas image inline
+                        await i.deferUpdate();
+                        const barnView = await createBarnView(currentProfile, username, userId, messageId);
+                        await i.editReply({ content: barnView.content, embeds: [], files: [barnView.attachment], components: barnView.components });
                         break;
                     }
 
@@ -892,7 +938,8 @@ export function createMainView(profile: any, username: string, avatar: string, u
 }
 
 // Create persistent action buttons (used on ALL views)
-function createActionButtons(userId: string): ActionRowBuilder<ButtonBuilder>[] {
+// Now supports back button when messageId is provided
+function createActionButtons(userId: string, messageId?: string): ActionRowBuilder<ButtonBuilder>[] {
     const row1 = new ActionRowBuilder<ButtonBuilder>().addComponents(
         DASHBOARD_BUTTONS.viewDaily(userId),
         DASHBOARD_BUTTONS.viewScratch(userId),
@@ -905,16 +952,17 @@ function createActionButtons(userId: string): ActionRowBuilder<ButtonBuilder>[] 
         DASHBOARD_BUTTONS.viewMain(userId)
     );
 
-    return [row1, row2];
+    // Add back button if history exists
+    return addBackButton([row1, row2], userId, messageId);
 }
 
-function createResultView(embed: EmbedBuilder, userId: string, emoji: string) {
+function createResultView(embed: EmbedBuilder, userId: string, emoji: string, messageId?: string) {
     embed.setFooter({ text: getRandomTip() });
-    const buttons = createActionButtons(userId);
+    const buttons = createActionButtons(userId, messageId);
     return { embed, components: buttons };
 }
 
-function createProfileView(profile: any, username: string, avatar: string, userId: string) {
+function createProfileView(profile: any, username: string, avatar: string, userId: string, messageId?: string) {
     const currentLevel = levels.find((l: any) => l.level === profile.level);
     const xpToNext = currentLevel?.xp_to_upgrade || 1000;
 
@@ -941,10 +989,10 @@ function createProfileView(profile: any, username: string, avatar: string, userI
         )
         .setTimestamp();
 
-    return { embed, components: createActionButtons(userId) };
+    return { embed, components: createActionButtons(userId, messageId) };
 }
 
-function createMarketView(profile: any, userId: string) {
+function createMarketView(profile: any, userId: string, messageId?: string) {
     // Group by type
     const seeds = marketItems.filter(i => i.type === "seeds").slice(0, 5);
     const animals = marketItems.filter(i => i.type === "animals").slice(0, 5);
@@ -962,10 +1010,10 @@ function createMarketView(profile: any, userId: string) {
         )
         .setFooter({ text: "Use /market for full list with details" });
 
-    return { embed, components: createActionButtons(userId) };
+    return { embed, components: createActionButtons(userId, messageId) };
 }
 
-function createStorageView(profile: any, userId: string) {
+function createStorageView(profile: any, userId: string, messageId?: string) {
     const products = profile.storage.products || [];
     const marketItemsStorage = profile.storage.market_items || [];
 
@@ -1007,11 +1055,12 @@ function createStorageView(profile: any, userId: string) {
         )
         .setFooter({ text: "Use Sell button to sell all products" });
 
-    return { embed, components: createActionButtons(userId) };
+    return { embed, components: createActionButtons(userId, messageId) };
 }
 
-function createUpgradeView(profile: any, userId: string) {
-    const upgrades = require("../config/upgrades/farms.json");
+function createUpgradeView(profile: any, userId: string, messageId?: string) {
+    const upgradesRaw = require("../config/upgrades/farms.json");
+    const upgrades = upgradesRaw.default || upgradesRaw;
     const currentLevel = profile.farm.level || 1;
     const nextUpgrade = upgrades.find((u: any) => u.level === currentLevel + 1);
     const currentUpgrade = upgrades.find((u: any) => u.level === currentLevel);
@@ -1052,15 +1101,17 @@ function createUpgradeView(profile: any, userId: string) {
 
     embed.setFooter({ text: "Use /upgradefarm to upgrade" });
 
-    return { embed, components: createActionButtons(userId) };
+    return { embed, components: createActionButtons(userId, messageId) };
 }
 
-function createNavView(command: string, userId: string) {
-    const commandInfo: Record<string, { title: string; desc: string; emoji: string }> = {
-        farm: { title: "🌱 Farm View", desc: "Use `/farm` to see your visual farm with planted crops!", emoji: "🌱" },
-        barn: { title: "🐔 Barn View", desc: "Use `/barn` to see your visual barn with raised animals!", emoji: "🐔" },
-        leaderboard: { title: "📊 Leaderboard", desc: "Use `/leaderboard xp` or `/leaderboard gold` to see rankings!", emoji: "📊" }
-    };
+function createNavView(command: string, userId: string, messageId?: string) {
+    // NOTE: All nav buttons are now handled inline by index.ts nav handlers:
+    // - nav:dashboard → index.ts shows dashboard inline
+    // - nav:farm → index.ts shows farm canvas inline  
+    // - nav:barn → index.ts shows barn canvas inline
+    // - nav:leaderboard → index.ts shows leaderboard inline
+    // This function is only used as a fallback for unknown commands.
+    const commandInfo: Record<string, { title: string; desc: string; emoji: string }> = {};
 
     const info = commandInfo[command] || { title: `/${command}`, desc: `Use \`/${command}\` to access this feature!`, emoji: "📋" };
 
@@ -1070,7 +1121,7 @@ function createNavView(command: string, userId: string) {
         .setDescription(info.desc)
         .setFooter({ text: "These features require visual rendering" });
 
-    return { embed, components: createActionButtons(userId) };
+    return { embed, components: createActionButtons(userId, messageId) };
 }
 
 function createBackRow(userId: string): ActionRowBuilder<ButtonBuilder> {
@@ -1081,7 +1132,7 @@ function createBackRow(userId: string): ActionRowBuilder<ButtonBuilder> {
 
 // --- Action Executors ---
 
-async function executeDailyAction(profile: any, dbProfile: any, userId: string) {
+export async function executeDailyAction(profile: any, dbProfile: any, userId: string) {
     const now = Date.now();
 
     if (profile.daily > now) {
@@ -1108,6 +1159,10 @@ async function executeDailyAction(profile: any, dbProfile: any, userId: string) 
     dbProfile.markModified("gold");
     await dbProfile.save();
 
+    // Log action and economy change
+    logger.action("daily", userId, "success", { reward, levelBonus });
+    logger.econ("gold", userId, reward, goldBefore, dbProfile.gold, "daily");
+
     return {
         success: true,
         embed: new EmbedBuilder()
@@ -1121,7 +1176,7 @@ async function executeDailyAction(profile: any, dbProfile: any, userId: string) 
     };
 }
 
-async function executeScratchAction(profile: any, dbProfile: any, userId: string) {
+export async function executeScratchAction(profile: any, dbProfile: any, userId: string) {
     const now = Date.now();
 
     if (profile.scratch > now) {
@@ -1150,6 +1205,15 @@ async function executeScratchAction(profile: any, dbProfile: any, userId: string
     dbProfile.markModified("xp");
     await dbProfile.save();
 
+    // Log action and economy change
+    const scratchResult = isGold ? "win" : "win";
+    logger.action("scratch", userId, "success", { isGold, reward: isGold ? goldReward : xpReward });
+    if (isGold) {
+        logger.econ("gold", userId, goldReward, goldBefore, dbProfile.gold, "scratch");
+    } else {
+        logger.econ("xp", userId, xpReward, xpBefore, dbProfile.xp, "scratch");
+    }
+
     const emoji = isGold ? "💰" : "⭐";
     const value = isGold ? goldReward : xpReward;
     const name = isGold ? "Gold" : "XP";
@@ -1168,7 +1232,7 @@ async function executeScratchAction(profile: any, dbProfile: any, userId: string
     };
 }
 
-async function executeHarvestAction(profile: any, dbProfile: any, userId: string) {
+export async function executeHarvestAction(profile: any, dbProfile: any, userId: string) {
     // Calculate storage
     let storageCount = 0;
     profile.storage.market_items.forEach((v: any) => storageCount += v?.amount ?? 0);
@@ -1205,6 +1269,9 @@ async function executeHarvestAction(profile: any, dbProfile: any, userId: string
 
     const xpGained = [...harvestedPlants, ...harvestedAnimals].reduce((sum: number, i: any) => sum + (i.xp_gain || 0), 0);
 
+    // Log action
+    logger.action("harvest", userId, "success", { crops: harvestedPlants.length, animals: harvestedAnimals.length, xpGained });
+
     return {
         success: true,
         embed: new EmbedBuilder()
@@ -1219,7 +1286,7 @@ async function executeHarvestAction(profile: any, dbProfile: any, userId: string
     };
 }
 
-async function executeSellAction(profile: any, dbProfile: any, userId: string) {
+export async function executeSellAction(profile: any, dbProfile: any, userId: string) {
     const productsModule = require("../config/items/products.json");
     const productsConfig = productsModule.default || productsModule;
     const products = profile.storage.products || [];
@@ -1257,6 +1324,10 @@ async function executeSellAction(profile: any, dbProfile: any, userId: string) {
     dbProfile.markModified("gold");
     dbProfile.markModified("storage.products");
     await dbProfile.save();
+
+    // Log action and economy change
+    logger.action("sell", userId, "success", { totalCount, totalValue });
+    logger.econ("gold", userId, totalValue, goldBefore, dbProfile.gold, "sell");
 
     return {
         success: true,
