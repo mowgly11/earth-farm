@@ -22,7 +22,11 @@ class MongooseInit {
         mongoose.connection.on('error', (error) => this.handleConnectionError(error));
 
         try {
-            await mongoose.connect(this.getConnectUrl());
+            await mongoose.connect(this.getConnectUrl(), {
+                maxPoolSize: 10,
+                minPoolSize: 2,
+                serverSelectionTimeoutMS: 5000
+            });
         } catch (error) {
             this.handleConnectionError(error);
             throw error; // Re-throw to prevent bot from running without DB

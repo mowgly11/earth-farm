@@ -4,7 +4,7 @@ import farms from "../config/upgrades/farms.json";
 import configuration from "../config/configuration.json";
 
 const schema: Schema = new Schema({
-    id: String,
+    id: { type: String, index: true, unique: true },
     username: String,
     blacklisted: { type: Boolean, default: false },
     level: { type: Number, default: configuration.starter_level },

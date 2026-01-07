@@ -36,6 +36,51 @@ class DatabaseMethods {
         }
     }
 
+    /**
+     * Get paginated leaderboard data - fetches only required users
+     */
+    async getLeaderboard(
+        sortBy: 'xp' | 'gold',
+        page: number,
+        limit: number = 10
+    ): Promise<{ users: any[], total: number }> {
+        try {
+            const sort: Record<string, 1 | -1> = sortBy === 'xp' ? { xp: -1 } : { gold: -1 };
+
+            const [users, total] = await Promise.all([
+                schema.find({})
+                    .select('id username level xp gold')
+                    .sort(sort)
+                    .skip(page * limit)
+                    .limit(limit)
+                    .lean(),
+                schema.countDocuments()
+            ]);
+
+            return { users, total };
+        } catch (err) {
+            console.error(err);
+            return { users: [], total: 0 };
+        }
+    }
+
+    /**
+     * Get user's rank position for leaderboard
+     */
+    async getUserRank(userId: string, sortBy: 'xp' | 'gold'): Promise<number> {
+        try {
+            const user = await schema.findOne({ id: userId }).select(sortBy).lean();
+            if (!user) return -1;
+
+            const value = (user as any)[sortBy] || 0;
+            const rank = await schema.countDocuments({ [sortBy]: { $gt: value } });
+            return rank + 1;
+        } catch (err) {
+            console.error(err);
+            return -1;
+        }
+    }
+
     async createUser(id: string, username: string): Promise<any> {
         try {
             // schema.create() already saves to the database
