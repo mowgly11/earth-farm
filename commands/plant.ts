@@ -1,7 +1,7 @@
 import { CommandInteraction, SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ActionRowBuilder } from "discord.js";
 import marketItems from "../config/items/market_items.json";
 import database from "../database/methods.ts";
-import { userProfileCache } from "../index.ts";
+import { userProfileCache } from "../services/profile_service.ts";
 import schema from "../database/schema.ts";
 import { logError } from "../utils/error_logger.ts";
 import { ERRORS, COLORS } from "../utils/constants.ts";

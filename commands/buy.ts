@@ -2,7 +2,7 @@ import { CommandInteraction, SlashCommandBuilder, EmbedBuilder } from "discord.j
 import marketItems from "../config/items/market_items.json";
 import database from "../database/methods.ts";
 import { logTransaction } from "../utils/transaction_logger.ts";
-import { userProfileCache } from "../index.ts";
+import { userProfileCache } from "../services/profile_service.ts";
 import { logError } from "../utils/error_logger.ts";
 import { logger } from "../utils/logger.ts";
 import { ERRORS, COLORS } from "../utils/constants.ts";
@@ -119,7 +119,7 @@ export async function execute(interaction: CommandInteraction) {
 
     try {
         // First update storage
-        let jsonitem = JSON.parse(JSON.stringify(findItemInDatabase));
+        let jsonitem = { ...findItemInDatabase };
         if (jsonitem.type === "animals") jsonitem.lifetime = Date.now() + Number(jsonitem.lifetime);
 
         await database.addItemToStorage(dbProfile, jsonitem, quantity, "market_items");

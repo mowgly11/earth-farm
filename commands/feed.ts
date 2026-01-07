@@ -1,7 +1,7 @@
 import { CommandInteraction, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder } from "discord.js";
 import database from "../database/methods.ts";
 import actions from "../config/data/actions.json";
-import { userProfileCache } from "../index.ts";
+import { userProfileCache } from "../services/profile_service.ts";
 import schema from "../database/schema.ts";
 import { logError } from "../utils/error_logger.ts";
 import { ERRORS, COLORS } from "../utils/constants.ts";
@@ -13,11 +13,38 @@ import { getProfile, updateCache } from "../services/index.ts";
 export const data = new SlashCommandBuilder()
     .setName("feed")
     .setDescription("Feed your animal to boost production speed! 🍖")
-    .addIntegerOption(option =>
-        option.setName("slot")
-            .setDescription("The animal slot number to feed")
+    .addStringOption(option =>
+        option.setName("animal")
+            .setDescription("Select an animal to feed")
             .setRequired(true)
-            .setMinValue(1));
+            .setAutocomplete(true));
+
+// Autocomplete handler for animal selection
+export async function autocomplete(interaction: any) {
+    const userId = interaction.user.id;
+    const focusedValue = interaction.options.getFocused().toLowerCase();
+
+    // Get user's animals from cache or DB
+    const { getProfile } = await import("../services/index.ts");
+    const profileResult = await getProfile(userId);
+
+    if (!profileResult || !profileResult.profile.farm.occupied_animal_slots?.length) {
+        return interaction.respond([{ name: "No animals raised yet!", value: "none" }]);
+    }
+
+    const animals = profileResult.profile.farm.occupied_animal_slots;
+    const choices = animals.map((animal: any, index: number) => ({
+        name: `${animal.name} (Slot ${index + 1})`,
+        value: `${index + 1}` // Store slot number as value
+    }));
+
+    // Filter based on user input
+    const filtered = choices.filter((choice: any) =>
+        choice.name.toLowerCase().includes(focusedValue)
+    ).slice(0, 25);
+
+    await interaction.respond(filtered);
+}
 
 export async function execute(interaction: CommandInteraction) {
     await interaction.deferReply();
@@ -30,7 +57,14 @@ export async function execute(interaction: CommandInteraction) {
     let userProfile = profileResult.profile;
     const dbProfile = profileResult.dbProfile;
 
-    const slotNumber = interaction.options.get("slot")?.value as number;
+    const slotValue = interaction.options.get("animal")?.value as string;
+
+    // Handle invalid selection
+    if (slotValue === "none" || !slotValue) {
+        return await interaction.editReply({ content: "❌ Please select a valid animal!" });
+    }
+
+    const slotNumber = parseInt(slotValue, 10);
 
     // No animals error
     if (!userProfile.farm.occupied_animal_slots.length) {
@@ -48,9 +82,9 @@ export async function execute(interaction: CommandInteraction) {
     }
 
     // Invalid slot error
-    if (slotNumber > userProfile.farm.occupied_animal_slots.length) {
+    if (isNaN(slotNumber) || slotNumber > userProfile.farm.occupied_animal_slots.length || slotNumber < 1) {
         const invalidSlotEmbed = new EmbedBuilder()
-            .setTitle("❌ Invalid Slot")
+            .setTitle("❌ Invalid Selection")
             .setColor(COLORS.ERROR)
             .setDescription(`Slot **${slotNumber}** doesn't exist!`)
             .addFields(

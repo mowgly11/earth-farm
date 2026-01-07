@@ -1,6 +1,6 @@
 import { CommandInteraction, SlashCommandBuilder, MessageFlags, ButtonBuilder, ButtonStyle, ActionRowBuilder, AttachmentBuilder, EmbedBuilder } from "discord.js";
 import database from "../database/methods.js";
-import { userProfileCache } from "../index.ts";
+import { userProfileCache } from "../services/profile_service.ts";
 import schema from "../database/schema.ts";
 import { logError } from "../utils/error_logger.ts";
 import { join } from "path";
@@ -11,9 +11,18 @@ import { createScratchButtons } from "../utils/button_handler.ts";
 import { SCRATCH_BUTTONS } from "../utils/buttons.ts";
 import { getProfile, updateCache } from "../services/index.ts";
 
-let beforeScratchImage = new AttachmentBuilder(join(__dirname, '../assets', 'cards', 'scratching_card.png'));
-let afterScratchImageGold = new AttachmentBuilder(join(__dirname, '../assets', 'cards', 'scratching_card_gold.png'));
-let afterScratchImageXP = new AttachmentBuilder(join(__dirname, '../assets', 'cards', 'scratching_card_xp.png'));
+// Lazy-loaded AttachmentBuilder cache
+let scratchImages: { before: AttachmentBuilder; gold: AttachmentBuilder; xp: AttachmentBuilder } | null = null;
+function getScratchImages() {
+    if (!scratchImages) {
+        scratchImages = {
+            before: new AttachmentBuilder(join(__dirname, '../assets', 'cards', 'scratching_card.png')),
+            gold: new AttachmentBuilder(join(__dirname, '../assets', 'cards', 'scratching_card_gold.png')),
+            xp: new AttachmentBuilder(join(__dirname, '../assets', 'cards', 'scratching_card_xp.png'))
+        };
+    }
+    return scratchImages;
+}
 
 export const data = new SlashCommandBuilder()
     .setName("scratch")
@@ -75,7 +84,7 @@ export async function execute(interaction: CommandInteraction) {
     await interaction.editReply({
         embeds: [startEmbed],
         components: [row],
-        files: [beforeScratchImage],
+        files: [getScratchImages().before],
     });
 
     // Wait for user to click scratch button - wrapped in try/catch to prevent crash on timeout
@@ -167,7 +176,8 @@ export async function execute(interaction: CommandInteraction) {
     await new Promise(resolve => setTimeout(resolve, 1500));
 
     // Create result embed
-    const image = rewardType === "gold" ? afterScratchImageGold : afterScratchImageXP;
+    const images = getScratchImages();
+    const image = rewardType === "gold" ? images.gold : images.xp;
     const rewardEmoji = rewardType === "gold" ? "💰" : "⭐";
     const rewardName = rewardType === "gold" ? "Gold" : "XP";
 

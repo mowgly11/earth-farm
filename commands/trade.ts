@@ -4,7 +4,7 @@ import marketItems from "../config/items/market_items.json";
 import products from "../config/items/products.json";
 import market from "../config/data/market.json";
 import { logTransaction } from "../utils/transaction_logger.ts";
-import { userProfileCache } from "../index.ts";
+import { userProfileCache } from "../services/profile_service.ts";
 import schema from "../database/schema.ts";
 import { logError } from "../utils/error_logger.ts";
 import { COLORS } from "../utils/constants.ts";

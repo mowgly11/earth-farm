@@ -1,7 +1,7 @@
 import { CommandInteraction, SlashCommandBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, ActionRowBuilder, ComponentType, MessageFlags } from "discord.js";
 import database from "../database/methods.ts";
 import farmLevels from "../config/upgrades/farms.json";
-import { userProfileCache } from "../index.ts";
+import { userProfileCache } from "../services/profile_service.ts";
 import schema from "../database/schema.ts";
 import { logError } from "../utils/error_logger.ts";
 import { COLORS } from "../utils/constants.ts";
@@ -41,10 +41,10 @@ export async function execute(interaction: CommandInteraction) {
     const row = new ActionRowBuilder<ButtonBuilder>()
         .addComponents(confirmBtn, cancelBtn, BUTTONS.dashboard());
 
-    const response = await interaction.reply({ embeds: [confirmationEmbed], components: [row], withResponse: true });
+    const response = await interaction.editReply({ embeds: [confirmationEmbed], components: [row] });
 
     let timeout = 60 * 1000;
-    const collector = response?.resource?.message?.createMessageComponentCollector({ filter: (m) => m.user.id === interaction.user.id, componentType: ComponentType.Button, time: timeout });
+    const collector = response.createMessageComponentCollector({ filter: (m) => m.user.id === interaction.user.id, componentType: ComponentType.Button, time: timeout });
 
     collector?.on("collect", async (col) => {
         await col.deferUpdate();

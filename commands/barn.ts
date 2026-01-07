@@ -173,7 +173,7 @@ export async function createBarnView(userProfile: any, username: string, userId:
         }
     }
 
-    const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: "barn.png" });
+    const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: `barn_${Date.now()}.png` });
 
     let storageCount = 0;
     userProfile.storage.market_items.forEach((v: any) => storageCount += v.amount);
@@ -198,8 +198,7 @@ Here is a picture of your barn:
 
     const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
         BUTTONS.harvest().setStyle(hasAnimals ? 3 : 2),
-        BUTTONS.sell().setStyle(hasProducts ? 3 : 2),
-        BUTTONS.dashboard()
+        BUTTONS.sell().setStyle(hasProducts ? 3 : 2)
     );
 
     return {

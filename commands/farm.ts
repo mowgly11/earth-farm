@@ -155,7 +155,7 @@ export async function execute(interaction: CommandInteraction) {
         }
     }
 
-    const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: "farm.png" });
+    const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: `farm_${Date.now()}.png` });
 
     const farmInfo = stringifySlots(userProfile.farm) + "Here is a picture of " + user.username + "'s farm";
 
@@ -261,7 +261,7 @@ export async function createFarmView(userProfile: any, username: string, userId:
         }
     }
 
-    const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: "farm.png" });
+    const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: `farm_${Date.now()}.png` });
     const farmInfo = stringifySlots(userProfile.farm) + "Here is a picture of " + username + "'s farm";
 
     // Navigation buttons
@@ -271,8 +271,7 @@ export async function createFarmView(userProfile: any, username: string, userId:
 
     const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
         BUTTONS.harvest().setStyle(hasReady ? 3 : 2),
-        BUTTONS.plant(),
-        BUTTONS.dashboard()
+        BUTTONS.plant()
     );
 
     return {

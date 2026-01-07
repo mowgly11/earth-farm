@@ -2,7 +2,7 @@ import { CommandInteraction, SlashCommandBuilder, EmbedBuilder, ButtonBuilder, B
 import marketItems from "../config/items/market_items.json";
 import upgrades from "../config/upgrades/farms.json";
 import database from "../database/methods.ts";
-import { userProfileCache } from "../index.ts";
+import { userProfileCache } from "../services/profile_service.ts";
 import { COLORS, ERRORS } from "../utils/constants.ts";
 import { createNoProfileEmbed } from "../utils/onboarding.ts";
 import { formatNumber, getRandomTip } from "../utils/ux.ts";

@@ -32,33 +32,26 @@ export const data = new SlashCommandBuilder()
 export async function execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply();
 
-    const type = interaction.options.getString("type")!;
+    const type = interaction.options.getString("type")! as 'xp' | 'gold';
     let currentPage = 0;
 
     try {
-        // Get all user profiles (sorted in DB would be more efficient with indexes)
-        const allProfiles = await database.getAllUsers() as unknown as UserProfile[];
+        // Get paginated leaderboard data (fetches only USERS_PER_PAGE users)
+        const { users: pageProfiles, total } = await database.getLeaderboard(type, currentPage, USERS_PER_PAGE);
+        const totalPages = Math.ceil(total / USERS_PER_PAGE);
 
-        // Sort profiles based on selected type
-        const sortedProfiles = allProfiles.sort((a: UserProfile, b: UserProfile) => {
-            if (type === "xp") {
-                return (b.xp || 0) - (a.xp || 0);
-            } else {
-                return (b.gold || 0) - (a.gold || 0);
-            }
-        });
-
-        const totalPages = Math.ceil(sortedProfiles.length / USERS_PER_PAGE);
+        // Get user's rank for display
+        const userRank = await database.getUserRank(interaction.user.id, type);
 
         // If only 1 page, no need for pagination buttons
         if (totalPages <= 1) {
-            const embed = createLeaderboardEmbed(sortedProfiles, type, currentPage, totalPages, interaction.user.id);
+            const embed = createLeaderboardEmbedPaginated(pageProfiles, type, currentPage, totalPages, total, interaction.user.id, userRank);
             const navRow = new ActionRowBuilder<ButtonBuilder>().addComponents(BUTTONS.dashboard());
             return await interaction.editReply({ embeds: [embed], components: [navRow] });
         }
 
         // Create initial embed with buttons
-        const embed = createLeaderboardEmbed(sortedProfiles, type, currentPage, totalPages, interaction.user.id);
+        const embed = createLeaderboardEmbedPaginated(pageProfiles, type, currentPage, totalPages, total, interaction.user.id, userRank);
         const row = createPaginationButtons(currentPage, totalPages);
 
         const response = await interaction.editReply({ embeds: [embed], components: [row, new ActionRowBuilder<ButtonBuilder>().addComponents(BUTTONS.dashboard())] });
@@ -96,8 +89,11 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 currentPage = totalPages - 1;
             }
 
+            // Fetch the new page data
+            const { users: newPageProfiles } = await database.getLeaderboard(type, currentPage, USERS_PER_PAGE);
+
             // Update embed and buttons
-            const newEmbed = createLeaderboardEmbed(sortedProfiles, type, currentPage, totalPages, interaction.user.id);
+            const newEmbed = createLeaderboardEmbedPaginated(newPageProfiles, type, currentPage, totalPages, total, interaction.user.id, userRank);
             const newRow = createPaginationButtons(currentPage, totalPages);
 
             await i.update({ embeds: [newEmbed], components: [newRow, new ActionRowBuilder<ButtonBuilder>().addComponents(BUTTONS.dashboard())] });
@@ -164,6 +160,59 @@ export function createLeaderboardEmbed(
                 description += `👤 **${userRank}.** You - ${userProfile.gold} 🪙\n`;
             }
         }
+    }
+
+    if (!description) {
+        description = "No users found on the leaderboard.";
+    }
+
+    embed.setDescription(description);
+    return embed;
+}
+
+/**
+ * Create leaderboard embed for paginated data (doesn't need full profiles array)
+ */
+export function createLeaderboardEmbedPaginated(
+    pageProfiles: UserProfile[],
+    type: string,
+    page: number,
+    totalPages: number,
+    totalUsers: number,
+    userId: string,
+    userRank: number
+): EmbedBuilder {
+    const startIndex = page * USERS_PER_PAGE;
+
+    const embed = new EmbedBuilder()
+        .setTitle(`🏆 Leaderboard - ${type.toUpperCase()}`)
+        .setColor(COLORS.PRIMARY)
+        .setTimestamp()
+        .setFooter({ text: `Page ${page + 1} of ${totalPages} • ${totalUsers} total farmers` });
+
+    // Build leaderboard description
+    let description = "";
+    for (let i = 0; i < pageProfiles.length; i++) {
+        const profile = pageProfiles[i];
+        const rank = startIndex + i + 1;
+        const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : "👤";
+        const isCurrentUser = profile.id === userId;
+        const highlight = isCurrentUser ? "→ " : "";
+
+        if (type === "xp") {
+            description += `${highlight}${medal} **${rank}.** ${profile.username} - Level ${profile.level} (${profile.xp} XP)\n`;
+        } else {
+            description += `${highlight}${medal} **${rank}.** ${profile.username} - ${profile.gold} 🪙\n`;
+        }
+    }
+
+    // Add user's rank if not visible on current page
+    const userPageStart = startIndex + 1;
+    const userPageEnd = startIndex + pageProfiles.length;
+
+    if (userRank > 0 && (userRank < userPageStart || userRank > userPageEnd)) {
+        description += "\n─────────────────────────\n";
+        description += `👤 **${userRank}.** Your position\n`;
     }
 
     if (!description) {
