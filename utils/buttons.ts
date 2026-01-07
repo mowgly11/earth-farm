@@ -96,9 +96,10 @@ export const BUTTONS = {
         .setStyle(BTN_STYLE.SECONDARY),
 
     // Back navigation button (message-scoped for history isolation)
-    backHistory: (userId: string, messageId: string) => new ButtonBuilder()
+    // destination: optional label like "Farm", "Dashboard" to show "← Farm"
+    backHistory: (userId: string, messageId: string, destination?: string) => new ButtonBuilder()
         .setCustomId(`nav:back:${userId}:${messageId}`)
-        .setLabel("← Back")
+        .setLabel(destination ? `← ${destination}` : "← Back")
         .setEmoji("↩️")
         .setStyle(BTN_STYLE.SECONDARY),
 
