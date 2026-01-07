@@ -11,7 +11,8 @@
   "module": "index.ts",
   "type": "module",
   "scripts": {
-    "bot": "bun run --watch index.ts",
+    "bot": "bun run index.ts",
+    "dev": "bun run --watch index.ts",
     "start": "bun run index.ts",
     "typecheck": "tsc --noEmit --skipLibCheck",
     "test": "bun test",
