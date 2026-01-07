@@ -10,8 +10,8 @@ import database from "../database/methods.ts";
 import schema from "../database/schema.ts";
 import type { UserProfile, UserProfileDocument } from "../types/database_types.ts";
 
-// Cache with 5-minute TTL
-const profileCache = new NodeCache({ stdTTL: 300, checkperiod: 60 });
+// Unified cache with 10-minute TTL
+const profileCache = new NodeCache({ stdTTL: 600, checkperiod: 120 });
 
 export interface ProfileResult {
     profile: UserProfile;
@@ -80,3 +80,6 @@ export function getCacheStats() {
 
 // Export the cache for direct access if needed (e.g., setting custom TTL)
 export { profileCache };
+
+// Alias for backward compatibility with command files
+export { profileCache as userProfileCache };
