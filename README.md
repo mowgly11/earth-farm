@@ -30,7 +30,14 @@ A feature-rich Discord bot that brings farming simulation to your Discord server
 - **Leaderboards**: Compete with other farmers
 - **Achievement System**: Track your farming progress
 
-### 🛠️ Utility Commands
+### � Dashboard & Navigation
+
+- **Interactive Dashboard**: Central hub with action buttons
+- **Profile Cards**: Canvas-generated profile images
+- **Back Navigation**: Navigate through views with history
+- **Autocomplete**: Smart animal selection for commands
+
+### �🛠️ Utility Commands
 
 - **Help System**: Comprehensive command guidance
 - **Avatar Customization**: Personalize your farmer profile
@@ -80,6 +87,7 @@ A feature-rich Discord bot that brings farming simulation to your Discord server
    COMMANDS_LOG_CHANNEL_ID=
    TRANSACTION_LOG_CHANNEL_ID=
    ERROR_LOG_CHANNEL_ID=
+   UPTIME_LOG_CHANNEL_ID=
    ADMIN_USER_ID=
    ```
 4. **Database Setup**
@@ -145,7 +153,8 @@ chmod +x deploy.sh
 - `/scratch` - Play scratch lottery games
 - `/xp` - View your experience points
 - `/leaderboard` - See top farmers
-- `/farmer` - View farmer profiles
+- `/profile` - View profile cards with stats
+- `/dashboard` - Interactive dashboard with actions
 
 ### Utility
 
@@ -159,16 +168,26 @@ chmod +x deploy.sh
 ```
 src/
 ├── commands/           # All bot commands
+│   ├── dashboard/     # Modular dashboard (views, actions, collector)
 │   ├── farm.ts        # Farm management commands
 │   ├── barn.ts        # Animal barn commands
 │   ├── market.ts      # Trading and marketplace
 │   └── ...            # Other command files
 ├── handlers/          # Event and command handlers
+│   ├── command.ts     # Command dispatcher
+│   └── navigation.ts  # Navigation button handlers
+├── services/          # Business logic layer
+│   ├── profile_service.ts  # Profile caching
+│   └── navigation_service.ts
 ├── database/          # MongoDB connection and methods
 │   ├── connect.ts     # Database connection
 │   ├── schema.ts      # Data models
 │   └── methods.ts     # Database operations
 ├── utils/             # Utility functions
+│   ├── buttons.ts     # Button templates (109 functions)
+│   ├── nav_history.ts # Navigation history system
+│   ├── logger.ts      # Professional colored logger
+│   └── ...            # Other utilities
 ├── types/             # TypeScript type definitions
 ├── config/            # Configuration files
 ├── assets/            # Static assets (images, fonts)
@@ -186,6 +205,7 @@ src/
 - `COMMANDS_LOG_CHANNEL_ID` - Discord channel ID for command logging
 - `TRANSACTION_LOG_CHANNEL_ID` - Discord channel ID for transaction logging
 - `ERROR_LOG_CHANNEL_ID` - Discord channel ID for error logging
+- `UPTIME_LOG_CHANNEL_ID` - Discord channel ID for hourly uptime/memory stats
 - `ADMIN_USER_ID` - Discord user ID with admin privileges
 
 ### Bot Permissions
