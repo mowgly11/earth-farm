@@ -1,22 +1,24 @@
-import { ActivityType, Client, Events, GatewayIntentBits, MessageFlags, TextChannel, EmbedBuilder, ActionRowBuilder, ButtonBuilder, StringSelectMenuBuilder } from 'discord.js';
+import { ActivityType, Client, Events, GatewayIntentBits, MessageFlags, TextChannel, EmbedBuilder, ActionRowBuilder, ButtonBuilder, StringSelectMenuBuilder, ButtonInteraction, StringSelectMenuInteraction } from 'discord.js';
 import { deployCommands } from './handlers/command.ts';
 import { commands } from './commands';
 import MongooseInit from "./database/connect.ts";
-import NodeCache from 'node-cache';
+// NodeCache import removed - now using unified cache from profile_service.ts
 import { createMarketView } from './utils/views.ts';
 import { formatNumber } from './utils/ux.ts';
 import { createMainView, setupDashboardCollector, executeDailyAction, executeScratchAction, executeHarvestAction, executeSellAction } from './commands/dashboard.ts';
 import { createFarmView } from './commands/farm.ts';
 import { createBarnView } from './commands/barn.ts';
-import { createLeaderboardEmbed, createPaginationButtons, USERS_PER_PAGE, type UserProfile } from './commands/leaderboard.ts';
+import { createLeaderboardEmbed, createPaginationButtons, USERS_PER_PAGE } from './commands/leaderboard.ts';
 import { createWelcomeEmbed, STARTER_BONUS } from './utils/onboarding.ts';
 import database from "./database/methods.ts";
 import { BUTTONS } from "./utils/buttons.ts";
 import { COLORS, ERRORS, BOT_VERSION, INTERVALS } from "./utils/constants.ts";
 import { logger, silentCatch } from "./utils/logger.ts";
 import { logButtonClick, logSelectMenu } from "./utils/interaction_logger.ts";
-import { pushView, popView, getDepth, clearWidget, startCleanupInterval, addBackButton } from "./utils/nav_history.ts";
+import { pushView, popView, getDepth, clearWidget, startCleanupInterval, addBackButton, setCurrentView } from "./utils/nav_history.ts";
 import { getProfile } from "./services/index.ts";
+import { dispatchNavigation, type NavContext } from "./handlers/navigation.ts";
+import type { UserProfile, StorageItem, OccupiedAnimalSlot, MarketItem } from "./types/database_types.ts";
 
 // Global error handlers to prevent crashes
 process.on('uncaughtException', (error) => {
@@ -29,7 +31,8 @@ process.on('unhandledRejection', (reason, promise) => {
   logger.error(`Unhandled Rejection: ${reason}`);
 });
 
-const userProfileCache = new NodeCache({ stdTTL: 3600, checkperiod: 120 });
+// Unified cache - re-exported from profile_service.ts to fix cache desync bug
+import { userProfileCache } from './services/profile_service.ts';
 const cooldowns = new Map();
 
 export { userProfileCache };
@@ -76,6 +79,18 @@ client.on(Events.ClientReady, async readyClient => {
 
   process.on("SIGINT", gracefulShutdown);
   process.on("SIGTERM", gracefulShutdown);
+
+  // Memory monitoring - log every 5 minutes
+  setInterval(() => {
+    const { heapUsed, rss } = process.memoryUsage();
+    const heapMB = Math.round(heapUsed / 1024 / 1024);
+    const rssMB = Math.round(rss / 1024 / 1024);
+    if (heapMB > 400) {
+      logger.warn(`Memory high: heap=${heapMB}MB rss=${rssMB}MB`);
+    } else {
+      logger.info(`Memory: heap=${heapMB}MB rss=${rssMB}MB`);
+    }
+  }, 5 * 60 * 1000);
 });
 
 
@@ -126,10 +141,13 @@ client.on("interactionCreate", async (interaction) => {
             return;
           }
 
-          const previousView = popView(userId, targetMessageId);
+          const previousViewState = popView(userId, targetMessageId);
+
+          // Debug: Log what view we're navigating to
+          logger.info(`NavHistory: nav:back handler - user=${userId.slice(-6)} poppedView=${previousViewState?.view || 'null'} navigatingTo=${!previousViewState || previousViewState.view === 'dashboard' ? 'dashboard' : previousViewState.view}`);
 
           // If no history, go to dashboard
-          if (!previousView || previousView === 'dashboard') {
+          if (!previousViewState || previousViewState.view === 'dashboard') {
             // Get profile for dashboard (using ProfileService)
             const profileResult = await getProfile(userId);
             if (!profileResult) {
@@ -145,6 +163,8 @@ client.on("interactionCreate", async (interaction) => {
             const message = response.resource?.message;
             if (message) {
               setupDashboardCollector(message, userId, username, avatar, interaction.client);
+              // Set current view after rendering dashboard
+              setCurrentView(userId, targetMessageId, 'dashboard');
             }
             return;
           }
@@ -160,6 +180,7 @@ client.on("interactionCreate", async (interaction) => {
           const username = interaction.user.username;
           const avatar = interaction.user.displayAvatarURL({ size: 128 });
           const messageId = interaction.message?.id || targetMessageId;
+          const previousView = previousViewState.view;
 
           // Render the previous view
           try {
@@ -174,8 +195,10 @@ client.on("interactionCreate", async (interaction) => {
               const allProfiles = await database.getAllUsers() as unknown as UserProfile[];
               const sortedProfiles = allProfiles.sort((a, b) => (b.xp || 0) - (a.xp || 0));
               const totalPages = Math.ceil(sortedProfiles.length / USERS_PER_PAGE);
-              const lbEmbed = createLeaderboardEmbed(sortedProfiles, 'xp', 0, totalPages, userId);
-              const lbRow = createPaginationButtons(0, totalPages);
+              // Use state if available for page number
+              const page = previousViewState.state?.page ?? 0;
+              const lbEmbed = createLeaderboardEmbed(sortedProfiles, 'xp', page, totalPages, userId);
+              const lbRow = createPaginationButtons(page, totalPages);
               const backRow = new ActionRowBuilder<ButtonBuilder>().addComponents(BUTTONS.dashboard());
               if (getDepth(userId, messageId) > 0) {
                 backRow.addComponents(BUTTONS.backHistory(userId, messageId));
@@ -206,635 +229,34 @@ client.on("interactionCreate", async (interaction) => {
         }
         const userProfile = profileResult.profile;
 
-        // Dashboard - show full UI inline with working collector
-        if (target === "dashboard") {
-          const username = interaction.user.username;
-          const avatar = interaction.user.displayAvatarURL({ size: 128 });
-          const view = createMainView(userProfile, username, avatar, userId);
+        // Dispatch to extracted navigation handlers (farm, barn, harvest, sell, daily, scratch, dashboard, help)
+        const navCtx: NavContext = {
+          interaction: interaction as any,
+          userId,
+          userProfile,
+          username: interaction.user.username,
+          avatar: interaction.user.displayAvatarURL({ size: 128 }),
+          messageId: interaction.message?.id
+        };
+        if (await dispatchNavigation(target, navCtx)) return;
 
-          // Update the message with dashboard view (files:[] removes farmer image)
-          const response = await interaction.update({ embeds: [view.embed], components: view.components, files: [], withResponse: true });
-          const message = response.resource?.message;
 
-          // Setup collector for dashboard buttons
-          if (message) {
-            setupDashboardCollector(message, userId, username, avatar, interaction.client);
-          }
-          return;
-        }
 
-        // Leaderboard - show inline with pagination
-        if (target === "leaderboard") {
-          try {
-            const messageId = interaction.message?.id;
 
-            // Track navigation history
-            if (messageId) pushView(userId, messageId, 'dashboard');
 
-            // Get all user profiles
-            const allProfiles = await database.getAllUsers() as unknown as UserProfile[];
-            const sortedProfiles = allProfiles.sort((a, b) => (b.xp || 0) - (a.xp || 0));
-            const totalPages = Math.ceil(sortedProfiles.length / USERS_PER_PAGE);
-            let currentPage = 0;
 
-            // Create initial embed
-            const embed = createLeaderboardEmbed(sortedProfiles, "xp", currentPage, totalPages, userId);
 
-            // Create back to dashboard button row with history back button
-            const backRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-              BUTTONS.backDashboard().setLabel("← Back to Dashboard")
-            );
-            if (messageId && getDepth(userId, messageId) > 0) {
-              backRow.addComponents(BUTTONS.backHistory(userId, messageId));
-            }
 
-            // No pagination needed for small leaderboards
-            if (totalPages <= 1) {
-              await interaction.update({ embeds: [embed], components: [backRow], files: [] });
-              return;
-            }
 
-            const row = createPaginationButtons(currentPage, totalPages);
-            const response = await interaction.update({ embeds: [embed], components: [row, backRow], files: [], withResponse: true });
-            const message = response.resource?.message;
 
-            if (!message) return;
 
-            // Create collector for pagination
-            const collector = message.createMessageComponentCollector({
-              time: 120000 // 2 minutes
-            });
 
-            collector.on("collect", async (i: any) => {
-              if (i.user.id !== userId) {
-                await i.reply({ content: "You can only navigate your own leaderboard.", flags: MessageFlags.Ephemeral });
-                return;
-              }
 
-              if (i.customId === "lb_prev") currentPage = Math.max(0, currentPage - 1);
-              else if (i.customId === "lb_next") currentPage = Math.min(totalPages - 1, currentPage + 1);
-              else if (i.customId === "lb_first") currentPage = 0;
-              else if (i.customId === "lb_last") currentPage = totalPages - 1;
 
-              const newEmbed = createLeaderboardEmbed(sortedProfiles, "xp", currentPage, totalPages, userId);
-              const newRow = createPaginationButtons(currentPage, totalPages);
-              await i.update({ embeds: [newEmbed], components: [newRow, backRow] });
-            });
 
-            collector.on("end", async () => {
-              const disabledRow = createPaginationButtons(currentPage, totalPages, true);
-              await message.edit({ components: [disabledRow, backRow] }).catch(silentCatch('leaderboard:disableButtons'));
-            });
-          } catch (err) {
-            logger.error(`Leaderboard inline error:`, err);
-            await interaction.reply({ content: "Failed to load leaderboard. Try `/leaderboard xp`.", flags: MessageFlags.Ephemeral });
-          }
-          return;
-        }
 
-        // Farm - show actual farm canvas image inline!
-        if (target === "farm") {
-          try {
-            const username = interaction.user.username;
-            const messageId = interaction.message?.id;
 
-            // Track navigation history
-            if (messageId) pushView(userId, messageId, 'dashboard');
 
-            const farmView = await createFarmView(userProfile, username, userId, messageId);
-
-            await interaction.update({
-              content: farmView.content,
-              embeds: [],
-              files: [farmView.attachment],
-              components: farmView.components
-            });
-          } catch (err) {
-            logger.error(`Farm inline error:`, err);
-            await interaction.reply({ content: "Failed to load farm. Try `/farm`.", flags: MessageFlags.Ephemeral });
-          }
-          return;
-        }
-
-        // Barn - show actual barn canvas image inline!
-        if (target === "barn") {
-          try {
-            const username = interaction.user.username;
-            const messageId = interaction.message?.id;
-
-            // Track navigation history
-            if (messageId) pushView(userId, messageId, 'dashboard');
-
-            const barnView = await createBarnView(userProfile, username, userId, messageId);
-
-            await interaction.update({
-              content: barnView.content,
-              embeds: [],
-              files: [barnView.attachment],
-              components: barnView.components
-            });
-          } catch (err) {
-            logger.error(`Barn inline error:`, err);
-            await interaction.reply({ content: "Failed to load barn. Try `/barn`.", flags: MessageFlags.Ephemeral });
-          }
-          return;
-        }
-
-        // Harvest - execute harvest action inline!
-        if (target === "harvest") {
-          try {
-            await interaction.deferUpdate();
-            const messageId = interaction.message?.id;
-            const dbProfile = await database.findUser(userId);
-            if (!dbProfile) {
-              await interaction.followUp({ content: "Profile not found!", flags: MessageFlags.Ephemeral });
-              return;
-            }
-            // Track navigation history (coming from farm or dashboard)
-            if (messageId) pushView(userId, messageId, 'farm');
-            const result = await executeHarvestAction(userProfile, dbProfile, userId);
-            const backBtn = BUTTONS.dashboard();
-            const row = new ActionRowBuilder<ButtonBuilder>().addComponents(backBtn);
-            const components = addBackButton([row], userId, messageId);
-            await interaction.editReply({ embeds: [result.embed], components, files: [] });
-          } catch (err) {
-            logger.error(`Harvest inline error:`, err);
-            await interaction.followUp({ content: "Failed to harvest. Try `/harvest`.", flags: MessageFlags.Ephemeral });
-          }
-          return;
-        }
-
-        // Sell - execute sell action inline!
-        if (target === "sell") {
-          try {
-            await interaction.deferUpdate();
-            const messageId = interaction.message?.id;
-            const dbProfile = await database.findUser(userId);
-            if (!dbProfile) {
-              await interaction.followUp({ content: "Profile not found!", flags: MessageFlags.Ephemeral });
-              return;
-            }
-            if (messageId) pushView(userId, messageId, 'barn');
-            const result = await executeSellAction(userProfile, dbProfile, userId);
-            const backBtn = BUTTONS.dashboard();
-            const row = new ActionRowBuilder<ButtonBuilder>().addComponents(backBtn);
-            const components = addBackButton([row], userId, messageId);
-            await interaction.editReply({ embeds: [result.embed], components, files: [] });
-          } catch (err) {
-            logger.error(`Sell inline error:`, err);
-            await interaction.followUp({ content: "Failed to sell. Try `/sell`.", flags: MessageFlags.Ephemeral });
-          }
-          return;
-        }
-
-        // Daily - execute daily action inline!
-        if (target === "daily") {
-          try {
-            await interaction.deferUpdate();
-            const messageId = interaction.message?.id;
-            const dbProfile = await database.findUser(userId);
-            if (!dbProfile) {
-              await interaction.followUp({ content: "Profile not found!", flags: MessageFlags.Ephemeral });
-              return;
-            }
-            if (messageId) pushView(userId, messageId, 'dashboard');
-            const result = await executeDailyAction(userProfile, dbProfile, userId);
-            const backBtn = BUTTONS.dashboard();
-            const row = new ActionRowBuilder<ButtonBuilder>().addComponents(backBtn);
-            const components = addBackButton([row], userId, messageId);
-            await interaction.editReply({ embeds: [result.embed], components, files: [] });
-          } catch (err) {
-            logger.error(`Daily inline error:`, err);
-            await interaction.followUp({ content: "Failed to claim daily. Try `/daily`.", flags: MessageFlags.Ephemeral });
-          }
-          return;
-        }
-
-        // Scratch - execute scratch action inline!
-        if (target === "scratch") {
-          try {
-            await interaction.deferUpdate();
-            const messageId = interaction.message?.id;
-            const dbProfile = await database.findUser(userId);
-            if (!dbProfile) {
-              await interaction.followUp({ content: "Profile not found!", flags: MessageFlags.Ephemeral });
-              return;
-            }
-            if (messageId) pushView(userId, messageId, 'dashboard');
-            const result = await executeScratchAction(userProfile, dbProfile, userId);
-            const backBtn = BUTTONS.dashboard();
-            const row = new ActionRowBuilder<ButtonBuilder>().addComponents(backBtn);
-            const components = addBackButton([row], userId, messageId);
-            await interaction.editReply({ embeds: [result.embed], components, files: [] });
-          } catch (err) {
-            logger.error(`Scratch inline error:`, err);
-            await interaction.followUp({ content: "Failed to scratch. Try `/scratch`.", flags: MessageFlags.Ephemeral });
-          }
-          return;
-        }
-
-        // Plant - show inline seed planting UI!
-        if (target === "plant") {
-          try {
-            const messageId = interaction.message?.id;
-
-            // Track navigation history
-            if (messageId) pushView(userId, messageId, 'farm');
-
-            // Get user's seeds from storage
-            const userSeeds = userProfile.storage.market_items.filter(
-              (item: any) => item && item.amount > 0
-            );
-
-            const availableSlots = userProfile.farm.available_crop_slots - userProfile.farm.occupied_crop_slots.length;
-
-            const embed = new EmbedBuilder()
-              .setTitle("🌱 Plant Seeds")
-              .setColor(COLORS.PRIMARY)
-              .addFields(
-                { name: "🌾 Available Crop Slots", value: `**${availableSlots}** slots`, inline: true },
-                { name: "💰 Gold", value: `**${formatNumber(userProfile.gold)}** 🪙`, inline: true }
-              );
-
-            const components: ActionRowBuilder<ButtonBuilder | StringSelectMenuBuilder>[] = [];
-
-            if (userSeeds.length === 0) {
-              embed.setDescription("You don't have any seeds! Buy some from the market first.");
-              const buyRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-                BUTTONS.market().setLabel("Buy Seeds"),
-                BUTTONS.farm().setLabel("← Back to Farm")
-              );
-              components.push(addBackButton([buyRow], userId, messageId)[0]);
-            } else if (availableSlots <= 0) {
-              embed.setDescription("No crop slots available! Harvest your crops first.");
-              const backRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-                BUTTONS.harvest().setLabel("Harvest Crops"),
-                BUTTONS.farm().setLabel("← Back to Farm")
-              );
-              components.push(addBackButton([backRow], userId, messageId)[0]);
-            } else {
-              embed.setDescription("Select a seed to plant from your storage:");
-
-              // Show seeds in storage
-              const seedsList = userSeeds.map((s: any) => `• **${s.name}** x${s.amount}`).join("\\n");
-              embed.addFields({ name: "📦 Your Seeds", value: seedsList || "None", inline: false });
-
-              // Create select menu for seeds
-              const selectMenu = new StringSelectMenuBuilder()
-                .setCustomId(`plant:select:${userId}`)
-                .setPlaceholder("Select a seed to plant...")
-                .addOptions(userSeeds.slice(0, 25).map((seed: any) => ({
-                  label: `${seed.name} (x${seed.amount})`,
-                  description: `Plant in ${Math.min(seed.amount, availableSlots)} slots`,
-                  value: seed.name.toLowerCase()
-                })));
-
-              components.push(new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu));
-
-              const backRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-                BUTTONS.farm().setLabel("← Back to Farm")
-              );
-              components.push(addBackButton([backRow], userId, messageId)[0]);
-            }
-
-            await interaction.update({ content: "", embeds: [embed], components, files: [] });
-          } catch (err) {
-            logger.error(`Plant inline error:`, err);
-            await interaction.followUp({ content: "Failed to load plant view. Try `/plant`.", flags: MessageFlags.Ephemeral });
-          }
-          return;
-        }
-
-        // Raise - show inline animal selection UI!
-        if (target === "raise") {
-          try {
-            const messageId = interaction.message?.id;
-            if (messageId) pushView(userId, messageId, 'barn');
-
-            // Get user's animals in storage (bought but not placed)
-            const userAnimals = userProfile.storage.market_items.filter(
-              (item: any) => {
-                if (!item || item.amount <= 0) return false;
-                // Check if it's an animal by looking at market items
-                const marketItem = require('./config/items/market_items.json').find(
-                  (m: any) => m.name.toLowerCase() === item.name.toLowerCase()
-                );
-                return marketItem?.type === "animals";
-              }
-            );
-
-            const availableSlots = userProfile.farm.available_animal_slots - userProfile.farm.occupied_animal_slots.length;
-
-            const embed = new EmbedBuilder()
-              .setTitle("🐔 Raise Animal")
-              .setColor(COLORS.PRIMARY)
-              .addFields(
-                { name: "🐾 Available Animal Slots", value: `**${availableSlots}** slots`, inline: true },
-                { name: "💰 Gold", value: `**${formatNumber(userProfile.gold)}** 🪙`, inline: true }
-              );
-
-            const components: ActionRowBuilder<ButtonBuilder | StringSelectMenuBuilder>[] = [];
-
-            if (userAnimals.length === 0) {
-              embed.setDescription("You don't have any animals! Buy some from the market first.");
-              const buyRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-                BUTTONS.market().setLabel("Buy Animals"),
-                BUTTONS.barn().setLabel("← Back to Barn")
-              );
-              components.push(addBackButton([buyRow], userId, messageId)[0]);
-            } else if (availableSlots <= 0) {
-              embed.setDescription("No animal slots available! Upgrade your farm for more slots.");
-              const backRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-                BUTTONS.barn().setLabel("← Back to Barn")
-              );
-              components.push(addBackButton([backRow], userId, messageId)[0]);
-            } else {
-              embed.setDescription("Select an animal to raise from your storage:");
-              const animalsList = userAnimals.map((a: any) => `• **${a.name}** x${a.amount}`).join("\\n");
-              embed.addFields({ name: "📦 Your Animals", value: animalsList || "None", inline: false });
-
-              const selectMenu = new StringSelectMenuBuilder()
-                .setCustomId(`raise:select:${userId}`)
-                .setPlaceholder("Select an animal to raise...")
-                .addOptions(userAnimals.slice(0, 25).map((animal: any) => ({
-                  label: `${animal.name} (x${animal.amount})`,
-                  description: `Place in ${Math.min(animal.amount, availableSlots)} slots`,
-                  value: animal.name.toLowerCase()
-                })));
-
-              components.push(new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu));
-              const backRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-                BUTTONS.barn().setLabel("← Back to Barn")
-              );
-              components.push(addBackButton([backRow], userId, messageId)[0]);
-            }
-
-            await interaction.update({ content: "", embeds: [embed], components, files: [] });
-          } catch (err) {
-            logger.error(`Raise inline error:`, err);
-            await interaction.followUp({ content: "Failed to load raise view. Try `/raise`.", flags: MessageFlags.Ephemeral });
-          }
-          return;
-        }
-
-        // Market - show inline market view!
-        if (target === "market") {
-          try {
-            const messageId = interaction.message?.id;
-            if (messageId) pushView(userId, messageId, 'dashboard');
-
-            const marketView = createMarketView("main", userProfile.gold, null, userId, messageId);
-            await interaction.update({ content: "", embeds: marketView.embeds, components: marketView.components, files: [] });
-          } catch (err) {
-            logger.error(`Market inline error:`, err);
-            await interaction.followUp({ content: "Failed to load market. Try `/market`.", flags: MessageFlags.Ephemeral });
-          }
-          return;
-        }
-
-        // XP - show inline XP progress!
-        if (target === "xp") {
-          try {
-            const messageId = interaction.message?.id;
-            if (messageId) pushView(userId, messageId, 'dashboard');
-
-            const xp = userProfile.xp || 0;
-            const level = userProfile.level || 1;
-            const xpForNextLevel = level * 100; // Example formula
-            const progress = Math.min((xp % xpForNextLevel) / xpForNextLevel * 100, 100).toFixed(1);
-
-            const embed = new EmbedBuilder()
-              .setTitle("⭐ XP Progress")
-              .setColor(COLORS.PRIMARY)
-              .addFields(
-                { name: "📊 Level", value: `**${level}**`, inline: true },
-                { name: "⭐ Total XP", value: `**${formatNumber(xp)}**`, inline: true },
-                { name: "📈 Progress", value: `**${progress}%** to next level`, inline: true }
-              );
-
-            const backRow = new ActionRowBuilder<ButtonBuilder>().addComponents(BUTTONS.dashboard());
-            await interaction.update({ content: "", embeds: [embed], components: addBackButton([backRow], userId, messageId), files: [] });
-          } catch (err) {
-            logger.error(`XP inline error:`, err);
-            await interaction.followUp({ content: "Failed to load XP. Try `/xp`.", flags: MessageFlags.Ephemeral });
-          }
-          return;
-        }
-
-        // Gold - show inline gold balance!
-        if (target === "gold") {
-          try {
-            const messageId = interaction.message?.id;
-            if (messageId) pushView(userId, messageId, 'dashboard');
-
-            const embed = new EmbedBuilder()
-              .setTitle("💰 Gold Balance")
-              .setColor(0xF1C40F)
-              .addFields(
-                { name: "🪙 Current Gold", value: `**${formatNumber(userProfile.gold || 0)}**`, inline: true },
-                { name: "📊 Level", value: `**${userProfile.level || 1}**`, inline: true }
-              )
-              .setFooter({ text: "Earn gold by selling products and claiming daily rewards!" });
-
-            const backRow = new ActionRowBuilder<ButtonBuilder>().addComponents(BUTTONS.dashboard());
-            await interaction.update({ content: "", embeds: [embed], components: addBackButton([backRow], userId, messageId), files: [] });
-          } catch (err) {
-            logger.error(`Gold inline error:`, err);
-            await interaction.followUp({ content: "Failed to load gold. Try `/gold`.", flags: MessageFlags.Ephemeral });
-          }
-          return;
-        }
-
-        // Farmer - show inline profile view!
-        if (target === "farmer") {
-          try {
-            const messageId = interaction.message?.id;
-            if (messageId) pushView(userId, messageId, 'dashboard');
-
-            const username = interaction.user.username;
-            const avatar = interaction.user.displayAvatarURL({ size: 128 });
-
-            const embed = new EmbedBuilder()
-              .setTitle(`👤 ${username}'s Farm Profile`)
-              .setColor(COLORS.PRIMARY)
-              .setThumbnail(avatar)
-              .addFields(
-                { name: "📊 Level", value: `**${userProfile.level || 1}**`, inline: true },
-                { name: "⭐ XP", value: `**${formatNumber(userProfile.xp || 0)}**`, inline: true },
-                { name: "💰 Gold", value: `**${formatNumber(userProfile.gold || 0)}**`, inline: true },
-                { name: "🌾 Crops", value: `${userProfile.farm.occupied_crop_slots?.length || 0}/${userProfile.farm.available_crop_slots}`, inline: true },
-                { name: "🐔 Animals", value: `${userProfile.farm.occupied_animal_slots?.length || 0}/${userProfile.farm.available_animal_slots}`, inline: true },
-                { name: "📦 Storage", value: `${userProfile.farm.storage_limit}`, inline: true }
-              );
-
-            const backRow = new ActionRowBuilder<ButtonBuilder>().addComponents(BUTTONS.dashboard());
-            await interaction.update({ content: "", embeds: [embed], components: addBackButton([backRow], userId, messageId), files: [] });
-          } catch (err) {
-            logger.error(`Farmer inline error:`, err);
-            await interaction.followUp({ content: "Failed to load profile. Try `/farmer`.", flags: MessageFlags.Ephemeral });
-          }
-          return;
-        }
-
-        // Feed - show animal list with feed action!
-        if (target === "feed") {
-          try {
-            const messageId = interaction.message?.id;
-            if (messageId) pushView(userId, messageId, 'barn');
-
-            const animals = userProfile.farm.occupied_animal_slots || [];
-
-            const embed = new EmbedBuilder()
-              .setTitle("🍖 Feed Animals")
-              .setColor(COLORS.PRIMARY)
-              .setDescription(animals.length === 0
-                ? "You don't have any animals to feed!"
-                : "Select an animal to feed (resets production timer):");
-
-            const components: ActionRowBuilder<ButtonBuilder | StringSelectMenuBuilder>[] = [];
-
-            if (animals.length > 0) {
-              const animalsList = animals.map((a: any, idx: number) =>
-                `**Slot ${idx + 1}:** ${a.name}`
-              ).join("\\n");
-              embed.addFields({ name: "🐾 Your Animals", value: animalsList, inline: false });
-
-              const selectMenu = new StringSelectMenuBuilder()
-                .setCustomId(`action:feed:${userId}`)
-                .setPlaceholder("Select animal to feed...")
-                .addOptions(animals.slice(0, 25).map((animal: any, idx: number) => ({
-                  label: `Slot ${idx + 1}: ${animal.name}`,
-                  value: String(idx + 1)
-                })));
-              components.push(new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu));
-            }
-
-            const backRow = new ActionRowBuilder<ButtonBuilder>().addComponents(BUTTONS.barn().setLabel("← Back to Barn"));
-            components.push(addBackButton([backRow], userId, messageId)[0]);
-
-            await interaction.update({ content: "", embeds: [embed], components, files: [] });
-          } catch (err) {
-            logger.error(`Feed inline error:`, err);
-            await interaction.followUp({ content: "Failed to load feed view. Try `/feed`.", flags: MessageFlags.Ephemeral });
-          }
-          return;
-        }
-
-        // Clean - show animal list with clean action!
-        if (target === "clean") {
-          try {
-            const messageId = interaction.message?.id;
-            if (messageId) pushView(userId, messageId, 'barn');
-
-            const animals = userProfile.farm.occupied_animal_slots || [];
-
-            const embed = new EmbedBuilder()
-              .setTitle("🧹 Clean Animals")
-              .setColor(COLORS.PRIMARY)
-              .setDescription(animals.length === 0
-                ? "You don't have any animals to clean!"
-                : "Select an animal area to clean (boosts production):");
-
-            const components: ActionRowBuilder<ButtonBuilder | StringSelectMenuBuilder>[] = [];
-
-            if (animals.length > 0) {
-              const animalsList = animals.map((a: any, idx: number) =>
-                `**Slot ${idx + 1}:** ${a.name}`
-              ).join("\\n");
-              embed.addFields({ name: "🐾 Your Animals", value: animalsList, inline: false });
-
-              const selectMenu = new StringSelectMenuBuilder()
-                .setCustomId(`action:clean:${userId}`)
-                .setPlaceholder("Select animal area to clean...")
-                .addOptions(animals.slice(0, 25).map((animal: any, idx: number) => ({
-                  label: `Slot ${idx + 1}: ${animal.name}`,
-                  value: String(idx + 1)
-                })));
-              components.push(new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu));
-            }
-
-            const backRow = new ActionRowBuilder<ButtonBuilder>().addComponents(BUTTONS.barn().setLabel("← Back to Barn"));
-            components.push(addBackButton([backRow], userId, messageId)[0]);
-
-            await interaction.update({ content: "", embeds: [embed], components, files: [] });
-          } catch (err) {
-            logger.error(`Clean inline error:`, err);
-            await interaction.followUp({ content: "Failed to load clean view. Try `/clean`.", flags: MessageFlags.Ephemeral });
-          }
-          return;
-        }
-
-        // Pet - show animal list with pet action!
-        if (target === "pet") {
-          try {
-            const messageId = interaction.message?.id;
-            if (messageId) pushView(userId, messageId, 'barn');
-
-            const animals = userProfile.farm.occupied_animal_slots || [];
-
-            const embed = new EmbedBuilder()
-              .setTitle("❤️ Pet Animals")
-              .setColor(0xE91E63)
-              .setDescription(animals.length === 0
-                ? "You don't have any animals to pet!"
-                : "Select an animal to pet (increases happiness):");
-
-            const components: ActionRowBuilder<ButtonBuilder | StringSelectMenuBuilder>[] = [];
-
-            if (animals.length > 0) {
-              const animalsList = animals.map((a: any, idx: number) =>
-                `**Slot ${idx + 1}:** ${a.name}`
-              ).join("\\n");
-              embed.addFields({ name: "🐾 Your Animals", value: animalsList, inline: false });
-
-              const selectMenu = new StringSelectMenuBuilder()
-                .setCustomId(`action:pet:${userId}`)
-                .setPlaceholder("Select animal to pet...")
-                .addOptions(animals.slice(0, 25).map((animal: any, idx: number) => ({
-                  label: `Slot ${idx + 1}: ${animal.name}`,
-                  value: String(idx + 1)
-                })));
-              components.push(new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu));
-            }
-
-            const backRow = new ActionRowBuilder<ButtonBuilder>().addComponents(BUTTONS.barn().setLabel("← Back to Barn"));
-            components.push(addBackButton([backRow], userId, messageId)[0]);
-
-            await interaction.update({ content: "", embeds: [embed], components, files: [] });
-          } catch (err) {
-            logger.error(`Pet inline error:`, err);
-            await interaction.followUp({ content: "Failed to load pet view. Try `/pet`.", flags: MessageFlags.Ephemeral });
-          }
-          return;
-        }
-
-        // Help - show inline help!
-        if (target === "help") {
-          try {
-            const messageId = interaction.message?.id;
-            if (messageId) pushView(userId, messageId, 'dashboard');
-
-            const embed = new EmbedBuilder()
-              .setTitle("❓ Earth Farm Help")
-              .setColor(COLORS.PRIMARY)
-              .setDescription("Quick command reference:")
-              .addFields(
-                { name: "🌾 Farming", value: "`/plant` · `/harvest` · `/farm`", inline: true },
-                { name: "🐔 Animals", value: "`/raise` · `/feed` · `/clean` · `/pet`", inline: true },
-                { name: "💰 Economy", value: "`/sell` · `/market` · `/daily` · `/scratch`", inline: true },
-                { name: "📊 Stats", value: "`/xp` · `/gold` · `/farmer` · `/leaderboard`", inline: true },
-                { name: "🏠 Navigation", value: "`/dashboard` · `/barn`", inline: true }
-              )
-              .setFooter({ text: "Tip: Use /dashboard for one-click access to everything!" });
-
-            const backRow = new ActionRowBuilder<ButtonBuilder>().addComponents(BUTTONS.dashboard());
-            await interaction.update({ content: "", embeds: [embed], components: addBackButton([backRow], userId, messageId), files: [] });
-          } catch (err) {
-            logger.error(`Help inline error:`, err);
-            await interaction.followUp({ content: "Failed to load help. Try `/help`.", flags: MessageFlags.Ephemeral });
-          }
-          return;
-        }
 
         // For other commands that can't be shown inline, show ephemeral hint
         // All known commands now have inline handlers above
@@ -1030,6 +452,20 @@ client.on("interactionCreate", async (interaction) => {
     }
   }
 
+  // Handle autocomplete interactions for commands with autocomplete options
+  if (interaction.isAutocomplete()) {
+    const { commandName } = interaction;
+    const command = commands[commandName as keyof typeof commands];
+    if (command?.autocomplete) {
+      try {
+        await command.autocomplete(interaction);
+      } catch (err) {
+        logger.error(`Autocomplete error for ${commandName}:`, err);
+      }
+    }
+    return;
+  }
+
   if (!interaction.isCommand()) return;
   if (interaction.user.bot) return await interaction.reply({ content: "bots are not allowed to use me.", flags: MessageFlags.Ephemeral });
 
@@ -1061,8 +497,13 @@ client.on("interactionCreate", async (interaction) => {
   if (commands[commandName as keyof typeof commands]) await commands[commandName as keyof typeof commands].execute(interaction);
   else await interaction.reply({ content: "That command doesn't exist.", flags: MessageFlags.Ephemeral });
 
-  cooldowns.set(interaction.user.id, Date.now() + 3000); // 3 seconds cooldown
-  setTimeout(() => cooldowns.delete(interaction.user.id), 3000);
+  const expiresAt = Date.now() + 3000;
+  cooldowns.set(interaction.user.id, expiresAt);
+  setTimeout(() => {
+    if (cooldowns.get(interaction.user.id) === expiresAt) {
+      cooldowns.delete(interaction.user.id);
+    }
+  }, 3000);
 });
 
 client.on("messageCreate", (message) => {
