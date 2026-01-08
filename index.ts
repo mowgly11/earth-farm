@@ -18,6 +18,7 @@ import { logButtonClick, logSelectMenu } from "./utils/interaction_logger.ts";
 import { pushView, popView, getDepth, clearWidget, startCleanupInterval, addBackButton, setCurrentView } from "./utils/nav_history.ts";
 import { getProfile } from "./services/index.ts";
 import { dispatchNavigation, type NavContext } from "./handlers/navigation.ts";
+import fs from "fs";
 import type { UserProfile, StorageItem, OccupiedAnimalSlot, MarketItem } from "./types/database_types.ts";
 
 // Global error handlers to prevent crashes
@@ -80,7 +81,7 @@ client.on(Events.ClientReady, async readyClient => {
   process.on("SIGINT", gracefulShutdown);
   process.on("SIGTERM", gracefulShutdown);
 
-  // Memory monitoring - log every 5 minutes
+  // Memory monitoring - log every 5 minutes to console
   setInterval(() => {
     const { heapUsed, rss } = process.memoryUsage();
     const heapMB = Math.round(heapUsed / 1024 / 1024);
@@ -91,6 +92,120 @@ client.on(Events.ClientReady, async readyClient => {
       logger.info(`Memory: heap=${heapMB}MB rss=${rssMB}MB`);
     }
   }, 5 * 60 * 1000);
+
+  // Hourly uptime logging to Discord channel with beautiful embed
+  const uptimeLogChannelId = process.env.UPTIME_LOG_CHANNEL_ID;
+  if (uptimeLogChannelId) {
+    const startTime = Date.now();
+
+    // Get container memory limit dynamically
+    const getMemoryLimitMB = (): number => {
+      try {
+        // Try cgroups v2 first (modern Docker/Linux)
+        const cgroupV2 = '/sys/fs/cgroup/memory.max';
+        if (fs.existsSync(cgroupV2)) {
+          const content = fs.readFileSync(cgroupV2, 'utf8').trim();
+          if (content !== 'max') {
+            return Math.round(parseInt(content) / 1024 / 1024);
+          }
+        }
+
+        // Try cgroups v1 (older Docker/Linux)
+        const cgroupV1 = '/sys/fs/cgroup/memory/memory.limit_in_bytes';
+        if (fs.existsSync(cgroupV1)) {
+          const bytes = parseInt(fs.readFileSync(cgroupV1, 'utf8').trim());
+          // Check if it's not the "unlimited" value (huge number)
+          if (bytes < 1e15) {
+            return Math.round(bytes / 1024 / 1024);
+          }
+        }
+      } catch (e) {
+        // Ignore errors, use fallback
+      }
+
+      // Fallback: use total system memory
+      const os = require('os');
+      return Math.round(os.totalmem() / 1024 / 1024);
+    };
+
+    const memoryLimitMB = getMemoryLimitMB();
+    logger.info(`Container memory limit detected: ${memoryLimitMB}MB`);
+
+    const sendUptimeEmbed = async () => {
+      try {
+        const channel = client.channels.cache.get(uptimeLogChannelId) as TextChannel;
+        if (!channel) {
+          logger.warn(`Uptime log channel not found: ${uptimeLogChannelId}`);
+          return;
+        }
+
+        const { heapUsed, rss, external, heapTotal } = process.memoryUsage();
+        const heapMB = Math.round(heapUsed / 1024 / 1024);
+        const heapTotalMB = Math.round(heapTotal / 1024 / 1024);
+        const rssMB = Math.round(rss / 1024 / 1024);
+        const externalMB = Math.round(external / 1024 / 1024);
+
+        const uptimeMs = Date.now() - startTime;
+        const uptimeHours = Math.floor(uptimeMs / (1000 * 60 * 60));
+        const uptimeMinutes = Math.floor((uptimeMs % (1000 * 60 * 60)) / (1000 * 60));
+        const uptimeDays = Math.floor(uptimeHours / 24);
+        const remainingHours = uptimeHours % 24;
+
+        // Use RSS as reference for memory percentage (accurate for container environments)
+        const memoryPercent = Math.min(100, Math.max(0, Math.round((rssMB / memoryLimitMB) * 100)));
+        const filledBars = Math.min(10, Math.max(0, Math.floor(memoryPercent / 10)));
+        const emptyBars = Math.max(0, 10 - filledBars);
+        const memoryBar = '█'.repeat(filledBars) + '░'.repeat(emptyBars);
+
+        // Determine status color based on RSS memory (container perspective)
+        const statusColor = rssMB > 400 ? 0xFF4444 : rssMB > 256 ? 0xFFAA00 : 0x00FF88;
+        const statusEmoji = rssMB > 400 ? '🔴' : rssMB > 256 ? '🟡' : '🟢';
+
+        const uptimeEmbed = new EmbedBuilder()
+          .setColor(statusColor)
+          .setTitle(`${statusEmoji} Earth Farm Bot - Hourly Status`)
+          .setDescription(`**Status:** Online and Healthy`)
+          .addFields(
+            {
+              name: '⏱️ Uptime',
+              value: uptimeDays > 0
+                ? `\`${uptimeDays}d ${remainingHours}h ${uptimeMinutes}m\``
+                : `\`${uptimeHours}h ${uptimeMinutes}m\``,
+              inline: true
+            },
+            {
+              name: '🌐 Servers',
+              value: `\`${client.guilds.cache.size}\``,
+              inline: true
+            },
+            {
+              name: '📦 Version',
+              value: `\`${BOT_VERSION}\``,
+              inline: true
+            },
+            {
+              name: '💾 Memory Usage',
+              value: `\`\`\`\n${memoryBar} ${memoryPercent}% of ${memoryLimitMB}MB\n\nRSS:      ${rssMB}MB (total)\nHeap:     ${heapMB}MB used\nExternal: ${externalMB}MB\n\`\`\``,
+              inline: false
+            }
+          )
+          .setFooter({ text: `🌾 Earth Farm Bot • Next update in 1 hour` })
+          .setTimestamp();
+
+        await channel.send({ embeds: [uptimeEmbed] });
+        logger.info(`Uptime embed sent to channel ${uptimeLogChannelId}`);
+      } catch (error) {
+        logger.error('Failed to send uptime embed:', error);
+      }
+    };
+
+    // Send first embed after 1 minute (to let bot fully start)
+    setTimeout(sendUptimeEmbed, 60 * 1000);
+
+    // Then send every hour
+    setInterval(sendUptimeEmbed, 60 * 60 * 1000);
+    logger.info(`Hourly uptime logging enabled for channel ${uptimeLogChannelId}`);
+  }
 });
 
 
