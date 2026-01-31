@@ -1,4 +1,5 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from "discord.js";
+import { COLORS } from "../utils/constants.ts";
 
 export const data = new SlashCommandBuilder()
     .setName("avatar")
@@ -18,7 +19,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const embed = new EmbedBuilder()
         .setTitle(`${targetUser.username}'s Avatar`)
         .setImage(targetUser.displayAvatarURL({ size: 4096 }))
-        .setColor("#FFD700")
+        .setColor(COLORS.PRIMARY)
         .setTimestamp()
         .setFooter({ text: `Requested by ${interaction.user.username}` });
 

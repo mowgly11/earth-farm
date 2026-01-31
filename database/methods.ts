@@ -3,6 +3,19 @@ import products from "../config/items/products.json";
 import levels from "../config/data/levels.json";
 
 class DatabaseMethods {
+    /**
+     * Mark multiple fields as modified and save in a single database operation
+     * This is more efficient than calling saveNestedObject multiple times
+     */
+    async saveMultipleFields(userProfile: any, ...fields: string[]): Promise<void> {
+        for (const field of fields) {
+            if (typeof userProfile.markModified === "function") {
+                userProfile.markModified(field);
+            }
+        }
+        await userProfile.save();
+    }
+
     async findUser(id: string): Promise<Document | null> {
         try {
             const user: Document | null = await schema.findOne({ id });
@@ -23,17 +36,61 @@ class DatabaseMethods {
         }
     }
 
+    /**
+     * Get paginated leaderboard data - fetches only required users
+     */
+    async getLeaderboard(
+        sortBy: 'xp' | 'gold',
+        page: number,
+        limit: number = 10
+    ): Promise<{ users: any[], total: number }> {
+        try {
+            const sort: Record<string, 1 | -1> = sortBy === 'xp' ? { xp: -1 } : { gold: -1 };
+
+            const [users, total] = await Promise.all([
+                schema.find({})
+                    .select('id username level xp gold')
+                    .sort(sort)
+                    .skip(page * limit)
+                    .limit(limit)
+                    .lean(),
+                schema.countDocuments()
+            ]);
+
+            return { users, total };
+        } catch (err) {
+            console.error(err);
+            return { users: [], total: 0 };
+        }
+    }
+
+    /**
+     * Get user's rank position for leaderboard
+     */
+    async getUserRank(userId: string, sortBy: 'xp' | 'gold'): Promise<number> {
+        try {
+            const user = await schema.findOne({ id: userId }).select(sortBy).lean();
+            if (!user) return -1;
+
+            const value = (user as any)[sortBy] || 0;
+            const rank = await schema.countDocuments({ [sortBy]: { $gt: value } });
+            return rank + 1;
+        } catch (err) {
+            console.error(err);
+            return -1;
+        }
+    }
+
     async createUser(id: string, username: string): Promise<any> {
         try {
-            const createUser = await schema.create({
+            // schema.create() already saves to the database
+            const newUser = await schema.create({
                 id,
                 username
             });
-
-            await createUser.save();
-
-            return createUser;
+            return newUser;
         } catch (err) {
+            console.error('Failed to create user:', err);
             return null;
         }
     }
@@ -54,6 +111,16 @@ class DatabaseMethods {
     async removeItemFromstorage(userProfile: any, item: string, quantity: number, type: "products" | "market_items") {
         let storageList = userProfile.storage[type];
         let itemIndex = storageList.findIndex((v: any) => v?.name === item);
+
+        // Bounds check to prevent crash if item not found
+        if (itemIndex === -1) {
+            throw new Error(`Item "${item}" not found in ${type}`);
+        }
+
+        // Check if user has enough quantity
+        if (storageList[itemIndex].amount < quantity) {
+            throw new Error(`Not enough "${item}" (have ${storageList[itemIndex].amount}, need ${quantity})`);
+        }
 
         storageList[itemIndex].amount -= quantity;
 
@@ -100,10 +167,8 @@ class DatabaseMethods {
             userProfile.xp += findItemInDatabase?.xp_gain;
         }
 
-        await this.saveNestedObject(userProfile, "farm");
-        await this.saveNestedObject(userProfile, "storage");
-
-        await userProfile.save();
+        // Save all changes in a single database call (was 3 calls before)
+        await this.saveMultipleFields(userProfile, "farm", "storage", "xp");
 
         return ready;
     }
@@ -142,13 +207,18 @@ class DatabaseMethods {
 
     async deployAnimal(userProfile: any, animal: Record<string, string | number | string[] | undefined>): Promise<void> {
         animal.ready_at = Date.now() + Number(animal.ready_time);
-        animal.lifetime = animal.lifetime;
+        // Calculate when the animal will die (lifetime from now)
+        animal.dies_at = Date.now() + Number(animal.lifetime);
         delete animal.amount;
         userProfile.farm.occupied_animal_slots.push(animal);
     }
 
-    async undeployAnimal(userProfile: any, slot: number): Promise<void> {
-        userProfile.farm.occupied_animal_slots.splice(slot - 1, 1);
+    async undeployAnimal(userProfile: any, slot: number): Promise<Record<string, any> | null> {
+        if (slot < 1 || slot > userProfile.farm.occupied_animal_slots.length) {
+            return null;
+        }
+        const [removedAnimal] = userProfile.farm.occupied_animal_slots.splice(slot - 1, 1);
+        return removedAnimal || null;
     }
 
     async gatherReadyProducts(userProfile: any, storageLeft: number) {
@@ -164,7 +234,7 @@ class DatabaseMethods {
 
             const foundProductInStorageIndex = userProfile.storage.products.findIndex((v: any) => v?.name === userProfile.farm.occupied_animal_slots[i].gives);
             let findItemInDatabase = products.find(v => v?.from === userProfile.farm.occupied_animal_slots[i].name);
-            
+
             let itemToInsert: any = Object.assign({}, findItemInDatabase);
             itemToInsert.amount = 1;
 
@@ -181,18 +251,17 @@ class DatabaseMethods {
             userProfile.xp += findItemInDatabase?.xp_gain;
         }
 
-        await this.saveNestedObject(userProfile, "farm");
-        await this.saveNestedObject(userProfile, "storage");
-
-        await userProfile.save();
+        // Save all changes in a single database call (was 3 calls before)
+        await this.saveMultipleFields(userProfile, "farm", "storage", "xp");
 
         return ready;
     }
 
     async checkAndRemoveDeadAnimals(userProfile: any) {
         let deadAnimals = [];
-        for(let i = userProfile.farm.occupied_animal_slots.length - 1; i >= 0; i--) {
-            if (userProfile.farm.occupied_animal_slots[i].lifetime - Date.now() <= 0) {
+        for (let i = userProfile.farm.occupied_animal_slots.length - 1; i >= 0; i--) {
+            // Check if animal has died (dies_at is timestamp, not duration)
+            if (userProfile.farm.occupied_animal_slots[i].dies_at && userProfile.farm.occupied_animal_slots[i].dies_at <= Date.now()) {
                 deadAnimals.push(userProfile.farm.occupied_animal_slots[i].name);
                 await this.undeployAnimal(userProfile, i + 1);
             }

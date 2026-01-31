@@ -1,76 +1,140 @@
-import { CommandInteraction, SlashCommandBuilder, MessageFlags, ButtonBuilder, ButtonStyle, ActionRowBuilder, AttachmentBuilder } from "discord.js";
+import { CommandInteraction, SlashCommandBuilder, MessageFlags, ButtonBuilder, ButtonStyle, ActionRowBuilder, AttachmentBuilder, EmbedBuilder } from "discord.js";
 import database from "../database/methods.js";
-import { userProfileCache } from "../index.ts";
+import { userProfileCache } from "../services/profile_service.ts";
 import schema from "../database/schema.ts";
 import { logError } from "../utils/error_logger.ts";
 import { join } from "path";
+import { ERRORS, COLORS } from "../utils/constants.ts";
+import { createNoProfileEmbed } from "../utils/onboarding.ts";
+import { formatNumber, relativeTimestamp, beforeAfter, getRandomTip, formatDuration } from "../utils/ux.ts";
+import { createScratchButtons } from "../utils/button_handler.ts";
+import { SCRATCH_BUTTONS } from "../utils/buttons.ts";
+import { getProfile, updateCache } from "../services/index.ts";
 
-let beforeScratchImage = new AttachmentBuilder(join(__dirname, '../assets', 'cards', 'scratching_card.png'));
-let afterScratchImageGold = new AttachmentBuilder(join(__dirname, '../assets', 'cards', 'scratching_card_gold.png'));
-let afterScratchImageXP = new AttachmentBuilder(join(__dirname, '../assets', 'cards', 'scratching_card_xp.png'));
+// Lazy-loaded AttachmentBuilder cache
+let scratchImages: { before: AttachmentBuilder; gold: AttachmentBuilder; xp: AttachmentBuilder } | null = null;
+function getScratchImages() {
+    if (!scratchImages) {
+        scratchImages = {
+            before: new AttachmentBuilder(join(__dirname, '../assets', 'cards', 'scratching_card.png')),
+            gold: new AttachmentBuilder(join(__dirname, '../assets', 'cards', 'scratching_card_gold.png')),
+            xp: new AttachmentBuilder(join(__dirname, '../assets', 'cards', 'scratching_card_xp.png'))
+        };
+    }
+    return scratchImages;
+}
 
 export const data = new SlashCommandBuilder()
     .setName("scratch")
-    .setDescription("scratch a card every 8 hours to earn a reward.")
+    .setDescription("Scratch a card every 8 hours to earn gold or XP!")
 
 export async function execute(interaction: CommandInteraction) {
     let user = interaction.options.get("farmer")?.user;
-    if (user?.bot) return await interaction.reply({ content: "you can't interact with bots!", flags: MessageFlags.Ephemeral });
+    if (user?.bot) return await interaction.reply({ content: "You can't interact with bots!", flags: MessageFlags.Ephemeral });
 
     let response = await interaction.deferReply({ withResponse: true });
 
     if (!user) user = interaction.user;
 
-    // Check cache first
-    let userProfile: any = userProfileCache.get(user.id);
-
-    // If not in cache, get from database and cache it
-    if (!userProfile) {
-        const dbProfile = await database.findUser(user.id);
-        if (!dbProfile) return await interaction.editReply({ content: "please use `/farmer` before trying to claim your scratching card reward." });
-
-        // Cache the plain object
-        userProfile = (dbProfile as any).toObject();
-        userProfileCache.set(user.id, userProfile);
-    }
+    // Get user profile (using ProfileService)
+    const profileResult = await getProfile(user.id);
+    if (!profileResult) return await interaction.editReply(createNoProfileEmbed(user.id));
+    let userProfile = profileResult.profile;
 
     let timeLeft = userProfile.scratch - Date.now();
-    if (timeLeft > 0) return await interaction.editReply({ content: `You still have to wait **${formatTimestamp(timeLeft)}** to claim your next scratching card reward.` });
 
-    let rewardsList: string[] = [`gold:${Math.floor(Math.random() * (80 - 25 + 1)) + 25}`, `xp:${Math.floor(Math.random() * (15 - 3 + 1)) + 1}`];
-    let reward = rewardsList[Math.floor(Math.random() * rewardsList.length)];
+    // Not ready yet - show wait embed
+    if (timeLeft > 0) {
+        const waitEmbed = new EmbedBuilder()
+            .setTitle("🎰 Scratch Card Not Ready")
+            .setColor(COLORS.WARNING)
+            .setDescription("You need to wait before scratching another card!")
+            .addFields(
+                { name: "⏳ Time Remaining", value: formatDuration(timeLeft), inline: true },
+                { name: "📅 Available", value: relativeTimestamp(userProfile.scratch), inline: true }
+            )
+            .setFooter({ text: getRandomTip() })
+            .setTimestamp();
 
-    let scratchBtn = new ButtonBuilder()
-        .setCustomId("scratch")
-        .setLabel("Scratch")
-        .setStyle(ButtonStyle.Secondary)
+        return await interaction.editReply({ embeds: [waitEmbed] });
+    }
 
-    let row = new ActionRowBuilder<ButtonBuilder>()
-        .addComponents(scratchBtn)
+    // Generate rewards with better odds
+    const goldReward = Math.floor(Math.random() * (150 - 50 + 1)) + 50;
+    const xpReward = Math.floor(Math.random() * (25 - 5 + 1)) + 5;
+    const isGold = Math.random() > 0.4; // 60% gold, 40% XP
+    const reward = isGold ? `gold:${goldReward}` : `xp:${xpReward}`;
+
+    // Create scratch button and initial embed
+    let scratchBtn = SCRATCH_BUTTONS.scratch();
+
+    let row = new ActionRowBuilder<ButtonBuilder>().addComponents(scratchBtn);
+
+    const startEmbed = new EmbedBuilder()
+        .setTitle("🎰 Scratch Card Ready!")
+        .setColor(COLORS.PRIMARY)
+        .setDescription("Click the button below to scratch your card and reveal your prize!")
+        .addFields(
+            { name: "🎁 Possible Rewards", value: "💰 **Gold** (50-150)\n⭐ **XP** (5-25)", inline: true },
+            { name: "⏰ Cooldown", value: "8 hours", inline: true }
+        )
+        .setImage("attachment://scratching_card.png")
+        .setFooter({ text: "You have 30 seconds to scratch!" });
 
     await interaction.editReply({
-        content: `Start scratching the card!`,
+        embeds: [startEmbed],
         components: [row],
-        files: [beforeScratchImage],
+        files: [getScratchImages().before],
     });
 
-    const collector = await response.resource?.message?.awaitMessageComponent({
-        filter: (i) => i.user.id === user.id,
-        time: 30000, // 30 seconds
-    });
+    // Wait for user to click scratch button - wrapped in try/catch to prevent crash on timeout
+    let collector;
+    try {
+        collector = await response.resource?.message?.awaitMessageComponent({
+            filter: (i) => i.user.id === user.id,
+            time: 30000, // 30 seconds
+        });
+    } catch (err) {
+        // Timeout - awaitMessageComponent throws on timeout, handle gracefully
+        scratchBtn.setDisabled(true).setLabel("⏰ Expired");
+        row = new ActionRowBuilder<ButtonBuilder>().addComponents(scratchBtn);
 
-    await collector?.deferUpdate();
+        const expiredEmbed = new EmbedBuilder()
+            .setTitle("⏰ Card Expired")
+            .setColor(COLORS.ERROR)
+            .setDescription("You didn't scratch in time! Use `/scratch` again when ready.")
+            .setTimestamp();
 
-    if (collector?.customId !== "scratch") return;
+        await interaction.editReply({ embeds: [expiredEmbed], components: [row], files: [] });
+        return;
+    }
 
+    if (!collector || collector.customId !== "scratch") {
+        // Invalid interaction
+        return;
+    }
+
+    await collector.deferUpdate();
+
+    // Parse reward
     let won = reward.split(":");
+    const rewardType = won[0];
+    const rewardAmount = parseInt(won[1]);
 
-    const updatedProfile = { ...userProfile };
+    // Store before values
+    const goldBefore = userProfile.gold;
+    const xpBefore = userProfile.xp;
+
+    // Update cache immediately with deep clone to prevent race conditions
+    const updatedProfile = JSON.parse(JSON.stringify(userProfile));
     updatedProfile.scratch = Date.now() + 1000 * 60 * 60 * 8; // 8h
 
-    if(won[0] === "gold") updatedProfile.gold += parseInt(won[1]);
-    else updatedProfile.xp += parseInt(won[1]);
-    
+    if (rewardType === "gold") {
+        updatedProfile.gold += rewardAmount;
+    } else {
+        updatedProfile.xp += rewardAmount;
+    }
+
     // Update cache
     userProfileCache.set(user.id, updatedProfile);
 
@@ -78,44 +142,81 @@ export async function execute(interaction: CommandInteraction) {
     const dbProfile = schema.hydrate(updatedProfile);
     if (!dbProfile) {
         userProfileCache.del(user.id);
-        return await interaction.editReply({ content: "An error occurred while processing your request." });
+        return await interaction.editReply({ content: ERRORS.GENERIC });
     }
 
     try {
         dbProfile.markModified("scratch");
         dbProfile.markModified("gold");
         dbProfile.markModified("xp");
-        
         await dbProfile.save();
     } catch (error) {
         logError(interaction.client, {
             path: 'scratch.ts',
             error
-        })
+        });
         userProfileCache.del(user.id);
-        return await interaction.editReply({ content: "An error occurred while processing your request." });
+        return await interaction.editReply({ content: ERRORS.GENERIC });
     }
 
-    row.components[0].setDisabled(true);
-    row.components[0].setLabel("Woohoo!");
+    // Disable button and change to celebration
+    scratchBtn.setDisabled(true).setLabel("🎉 Revealed!").setStyle(ButtonStyle.Secondary);
+    row = new ActionRowBuilder<ButtonBuilder>().addComponents(scratchBtn);
 
-    await interaction?.editReply({
-        content: `Scratching...`,
-    });
+    // Show scratching animation
+    const scratchingEmbed = new EmbedBuilder()
+        .setTitle("✨ Scratching...")
+        .setColor(COLORS.PRIMARY)
+        .setDescription("Revealing your prize...")
+        .setTimestamp();
 
-    let image = won[0] === "gold" ? afterScratchImageGold : afterScratchImageXP;
+    await interaction.editReply({ embeds: [scratchingEmbed], components: [], files: [] });
 
-    await interaction?.editReply({
-        content: `You scratched the card and earned **${won[1]} ${won[0].toUpperCase()}**!`,
+    // Wait a moment for suspense
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    // Create result embed
+    const images = getScratchImages();
+    const image = rewardType === "gold" ? images.gold : images.xp;
+    const rewardEmoji = rewardType === "gold" ? "💰" : "⭐";
+    const rewardName = rewardType === "gold" ? "Gold" : "XP";
+
+    const resultEmbed = new EmbedBuilder()
+        .setTitle("🎉 Scratch Card Revealed!")
+        .setColor(COLORS.SUCCESS)
+        .setDescription(`**${userProfile.username}** scratched and won!`)
+        .addFields(
+            {
+                name: `${rewardEmoji} Prize`,
+                value: `**+${formatNumber(rewardAmount)}** ${rewardName}`,
+                inline: true
+            },
+            {
+                name: "📊 Balance",
+                value: rewardType === "gold"
+                    ? beforeAfter(goldBefore, updatedProfile.gold, '💰')
+                    : beforeAfter(xpBefore, updatedProfile.xp, '⭐'),
+                inline: true
+            }
+        )
+        .addFields(
+            {
+                name: "⏰ Next Scratch",
+                value: relativeTimestamp(updatedProfile.scratch),
+                inline: true
+            }
+        )
+        .setImage(`attachment://scratching_card_${rewardType}.png`)
+        .setThumbnail(user.displayAvatarURL({ size: 128 }))
+        .setFooter({ text: getRandomTip() })
+        .setTimestamp();
+
+    // Add follow-up action buttons
+    const actionButtons = createScratchButtons(user.id);
+
+    await interaction.editReply({
+        embeds: [resultEmbed],
         files: [image],
-        components: [row],
+        components: [row, actionButtons],
     });
-}
-
-function formatTimestamp(timestamp: number): string {
-    const seconds = Math.floor(timestamp / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-
-    return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
 }

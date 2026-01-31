@@ -1,52 +1,136 @@
-export type storageItem = {
+import { Document } from "mongoose";
+
+// --- Storage Types ---
+
+export interface StorageItem {
     name: string;
     amount: number;
-    type: string;
+    type?: string;
+    buy_price?: number;
+    sell_price?: number;
+    gives?: string;
+    ready_time?: number;
+    food?: string[];
+    level?: number;
+    lifetime?: number;
+    xp_gain?: number;
+    from?: string;
 }
 
-export type OccupiedCropSlot = {
-    seed: string,
-    started: boolean,
-    ready_in: number,
-    product: string
+export interface Storage {
+    market_items: StorageItem[];
+    products: StorageItem[];
 }
 
-export type OccupiedAnimalSlot = {
-    animal: string,
-    started: boolean,
-    ready_at: number,
-    ready_time: number,
-    gives: string,
-    total_boost: number,
-    boost_expires_at: number,
-    lifetime: number,
+// --- Farm Types ---
+
+export interface OccupiedCropSlot {
+    name: string;
+    gives: string;
+    ready_at: number;
 }
 
-export type Farm = {
+export interface OccupiedAnimalSlot {
+    name: string;
+    gives: string;
+    ready_at: number;
+    ready_time: number;
+    total_boost?: number;
+    boost_expires_at?: number;
+    dies_at?: number;
+    lifetime?: number;
+    level?: number;
+    buy_price?: number;
+    sell_price?: number;
+    food?: string[];
+    type?: string;
+}
+
+export type UpgradeType = "Fertilizer" | "Tractor" | "Greenhouse" | "Sprinkler System";
+
+export interface Farm {
     level: number;
-    crop_slots: number;
-    animal_slots: number;
+    available_crop_slots: number;
+    available_animal_slots: number;
     storage_limit: number;
-};
-
-export type storage = {
-    seeds: Array<storageItem>,
-    crops: Array<storageItem>,
-    animals: Array<storageItem>,
-    animal_products: Array<storageItem>,
-};
-
-export type User = {
-    readonly id: string;
-    username: string;
-    farm: Farm;
-    storage: storage;
+    occupied_crop_slots: OccupiedCropSlot[];
+    occupied_animal_slots: OccupiedAnimalSlot[];
+    upgrades: UpgradeType[];
 }
 
-export type Upgrades = "Fertilizer" | "Tractor" | "Greenhouse" | "Sprinkler System";
+// --- User Actions Types ---
 
-export interface Actions {
+export interface UserActions {
     lastFed: number;
     lastPet: number;
     lastCleaned: number;
 }
+
+// --- UserProfile Interface ---
+
+export interface UserProfile {
+    id: string;
+    username: string;
+    blacklisted: boolean;
+    level: number;
+    xp: number;
+    gold: number;
+    daily: number;
+    scratch: number;
+    actions: UserActions;
+    farm: Farm;
+    storage: Storage;
+}
+
+/**
+ * UserProfile with Mongoose Document methods
+ * Use this when working with database documents
+ * We omit 'id' from Document to avoid conflict with our string id
+ */
+export interface UserProfileDocument extends UserProfile, Omit<Document, 'id'> {
+    markModified(path: string): void;
+    save(): Promise<this>;
+}
+
+// --- Market Item Types ---
+
+export interface MarketItem {
+    name: string;
+    type: "seeds" | "animals";
+    buy_price: number;
+    sell_price: number;
+    gives: string;
+    ready_time: number;
+    food?: string[];
+    level: number;
+    lifetime?: number;
+}
+
+export interface Product {
+    name: string;
+    from: string;
+    sell_price: number;
+    type: "crops" | "animal_products";
+    xp_gain: number;
+}
+
+// --- Farm Level Configuration ---
+
+export interface FarmLevelConfig {
+    level: number;
+    price: number;
+    available_crop_slots: number;
+    available_animal_slots: number;
+    storage_limit: number;
+}
+
+// --- Legacy Type Aliases ---
+
+/** @deprecated Use StorageItem instead */
+export type storageItem = StorageItem;
+
+/** @deprecated Use UpgradeType instead */
+export type Upgrades = UpgradeType;
+
+/** @deprecated Use UserActions instead */
+export type Actions = UserActions;

@@ -1,134 +1,252 @@
-import { CommandInteraction, SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, ComponentType, MessageFlags } from "discord.js";
+import { CommandInteraction, SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, ComponentType, StringSelectMenuBuilder, StringSelectMenuInteraction, ButtonInteraction, MessageFlags } from "discord.js";
 import marketItems from "../config/items/market_items.json";
 import upgrades from "../config/upgrades/farms.json";
+import database from "../database/methods.ts";
+import { userProfileCache } from "../services/profile_service.ts";
+import { COLORS, ERRORS } from "../utils/constants.ts";
+import { createNoProfileEmbed } from "../utils/onboarding.ts";
+import { formatNumber, getRandomTip } from "../utils/ux.ts";
+import { BTN_STYLE, parseButtonId, isButtonOwner } from "../utils/button_handler.ts";
+import { MARKET_BUTTONS, BUTTONS } from "../utils/buttons.ts";
+import { getProfile } from "../services/index.ts";
 
 export const data = new SlashCommandBuilder()
     .setName("market")
-    .setDescription("shows the current market items");
+    .setDescription("Browse and buy items from the market!");
 
 export async function execute(interaction: CommandInteraction) {
-    const marketLandingPage = new EmbedBuilder()
-        .setTitle("🏪 The Market")
-        .setColor("#FFD700")
-        .setTimestamp()
-        .setDescription("Welcome to the farm market! Here you can buy all the items you need to move further with your farming.\n\n**Categories:**\n• 🤠 Animals - Raise animals for products\n• 🌱 Seeds - Plant and harvest crops\n• ⏫ Upgrades - Improve your farm\n\nCheck the buttons below to explore the current market items.")
-        .setImage("https://i.postimg.cc/BnK28KBq/farm.webp");
+    const userId = interaction.user.id;
 
-    const marketAnimalsPage = new EmbedBuilder()
-        .setTitle("🤠 Animals Market")
-        .setTimestamp()
-        .setColor("#FFD700")
-        .setDescription("Browse available animals to raise on your farm.")
-        .setFooter({ text: "Tip: Use /buy to purchase animals" })
-        .setImage("https://i.postimg.cc/BnK28KBq/farm.webp");
+    // Get user profile (using ProfileService)
+    const profileResult = await getProfile(userId);
+    if (!profileResult) return await interaction.reply({ ...createNoProfileEmbed(userId), flags: MessageFlags.Ephemeral });
+    let userProfile = profileResult.profile;
 
-    const marketSeedsPage = new EmbedBuilder()
-        .setTitle("🌱 Seeds Market")
-        .setTimestamp()
-        .setColor("#FFD700")
-        .setDescription("Browse available seeds to plant on your farm.")
-        .setFooter({ text: "Tip: Use /buy to purchase seeds" })
-        .setImage("https://i.postimg.cc/BnK28KBq/farm.webp");
+    // Track selected item
+    let selectedItem: any = null;
+    let currentCategory = "main";
 
-    const marketUpgradesPage = new EmbedBuilder()
-        .setTitle("⏫ Farm Upgrades")
-        .setTimestamp()
-        .setColor("#FFD700")
-        .setDescription("Upgrade your farm to increase slots and storage capacity.")
-        .setFooter({ text: "Tip: Use /upgradefarm to upgrade your farm" })
-        .setImage("https://i.postimg.cc/BnK28KBq/farm.webp");
-
-    // Format market items
-    const animals = marketItems.filter(item => item.type === "animals");
-    const seeds = marketItems.filter(item => item.type === "seeds");
-
-    // Add animals to the animals page
-    animals.forEach(animal => {
-        marketAnimalsPage.addFields({
-            name: animal.name,
-            value: `**Level:** ${animal.level}\n**Price:** ${animal.buy_price} 🪙\n**Ready Time:** ${(animal.ready_time / 1000 / 60).toFixed(0)}mins\n**Produces:** ${animal.gives}\n**Lifetime:** ${animal.lifetime!/1000/60/60}h`,
-            inline: true
-        });
-    });
-
-    // Add seeds to the seeds page
-    seeds.forEach(seed => {
-        marketSeedsPage.addFields({
-            name: seed.name,
-            value: `**Level:** ${seed.level}\n**Price:** ${seed.buy_price} 🪙\n**Ready Time:** ${(seed.ready_time / 1000 / 60).toFixed(0)}mins\n**Produces:** ${seed.gives}`,
-            inline: true
-        });
-    });
-
-    // Add upgrades to the upgrades page
-    upgrades.forEach(upgrade => {
-        if (upgrade.level === 1) return; // Skip the first level as it's the starting point
-        marketUpgradesPage.addFields({
-            name: `Level ${upgrade.level}`,
-            value: `**Price:** ${upgrade.price} 🪙\n**Crop Slots:** ${upgrade.available_crop_slots}\n**Animal Slots:** ${upgrade.available_animal_slots}\n**Storage:** ${upgrade.storage_limit}`,
-            inline: true
-        });
-    });
-
-    const animalsBtn = new ButtonBuilder()
-        .setCustomId('animals')
-        .setLabel('Animals 🤠')
-        .setStyle(ButtonStyle.Primary)
-
-    const seedsBtn = new ButtonBuilder()
-        .setCustomId('seeds')
-        .setLabel('Seeds 🌱')
-        .setStyle(ButtonStyle.Primary);
-
-    const upgradesBtn = new ButtonBuilder()
-        .setCustomId('upgrades')
-        .setLabel('Upgrades ⏫')
-        .setStyle(ButtonStyle.Primary);
-
-    const mainMenu = new ButtonBuilder()
-        .setCustomId('mainmenu')
-        .setLabel('Main Menu')
-        .setStyle(ButtonStyle.Success);
-
-    const row = new ActionRowBuilder<ButtonBuilder>()
-        .addComponents(mainMenu, animalsBtn, seedsBtn, upgradesBtn);
-
+    // Send initial view
     const response = await interaction.reply({
-        embeds: [marketLandingPage],
-        components: [row],
+        ...createMarketView(currentCategory, userProfile.gold, selectedItem, userId),
         withResponse: true
     });
 
-    let timeout = 120_000;
-    const collector = response?.resource?.message?.createMessageComponentCollector({ filter: (m) => m.user.id === interaction.user.id, componentType: ComponentType.Button, time: timeout });
+    // Collector for all interactions
+    const collector = response?.resource?.message?.createMessageComponentCollector({
+        filter: (m) => {
+            // Check ownership via customId for buttons
+            if (m.isButton()) {
+                const parts = m.customId.split(":");
+                return parts.length < 3 || parts[2] === userId;
+            }
+            return m.user.id === userId;
+        },
+        time: 300000 // 5 minutes
+    });
 
-    collector?.on("collect", async data => {
-        await data.deferUpdate();
+    collector?.on("collect", async (i) => {
+        // Refresh profile
+        const dbProfile = await database.findUser(userId);
+        if (!dbProfile) {
+            await i.reply({ ...createNoProfileEmbed(i.user.id), flags: MessageFlags.Ephemeral });
+            return;
+        }
+        userProfile = (dbProfile as any).toObject();
+        userProfileCache.set(userId, userProfile);
 
-        row.components.forEach(component => component.setStyle(ButtonStyle.Primary).setDisabled(false));
+        if (i.isStringSelectMenu()) {
+            // Item selected
+            await i.deferUpdate();
+            const itemName = i.values[0];
+            selectedItem = marketItems.find(item => item.name.toLowerCase() === itemName.toLowerCase());
 
-        switch (data.customId) {
-            case "mainmenu":
-                row.components[0].setStyle(ButtonStyle.Success).setDisabled(true);
-                await interaction.editReply({ embeds: [marketLandingPage], components: [row] });
-                break;
-            case "animals":
-                row.components[1].setStyle(ButtonStyle.Success).setDisabled(true);
-                await interaction.editReply({ embeds: [marketAnimalsPage], components: [row] });
-                break;
-            case "seeds":
-                row.components[2].setStyle(ButtonStyle.Success).setDisabled(true);
-                await interaction.editReply({ embeds: [marketSeedsPage], components: [row] });
-                break;
-            case "upgrades":
-                row.components[3].setStyle(ButtonStyle.Success).setDisabled(true);
-                await interaction.editReply({ embeds: [marketUpgradesPage], components: [row] });
-                break;
+            const view = createMarketView(currentCategory, userProfile.gold, selectedItem, userId);
+            await interaction.editReply(view);
+
+        } else if (i.isButton()) {
+            const customId = i.customId;
+
+            // Category buttons
+            if (["main", "animals", "seeds", "upgrades"].includes(customId)) {
+                await i.deferUpdate();
+                currentCategory = customId;
+                selectedItem = null;
+
+                const view = createMarketView(currentCategory, userProfile.gold, selectedItem, userId);
+                await interaction.editReply(view);
+
+            } else if (customId.startsWith("buy:")) {
+                // Buy action
+                const parts = customId.split(":");
+                const amount = parseInt(parts[1]);
+
+                if (!selectedItem) {
+                    await i.reply({ content: "❌ No item selected!", flags: MessageFlags.Ephemeral });
+                    return;
+                }
+
+                const totalCost = selectedItem.buy_price * amount;
+                if (userProfile.gold < totalCost) {
+                    await i.reply({
+                        content: `❌ You need **${formatNumber(totalCost)}** 🪙 but only have **${formatNumber(userProfile.gold)}** 🪙`,
+                        flags: MessageFlags.Ephemeral
+                    });
+                    return;
+                }
+
+                // Perform purchase
+                const profile = dbProfile as any;
+                profile.gold -= totalCost;
+
+                // Add to storage
+                const storageKey = selectedItem.type === "seeds" ? "market_items" : "market_items";
+                const existingItem = profile.storage[storageKey].find((s: any) => s.name === selectedItem.name);
+                if (existingItem) {
+                    existingItem.amount += amount;
+                } else {
+                    profile.storage[storageKey].push({ name: selectedItem.name, amount });
+                }
+
+                profile.markModified("gold");
+                profile.markModified("storage");
+                await profile.save();
+
+                // Update cache
+                userProfile = profile.toObject();
+                userProfileCache.set(userId, userProfile);
+
+                await i.reply({
+                    content: `✅ Purchased **${amount}x ${selectedItem.name}** for **${formatNumber(totalCost)}** 🪙!\n💰 New balance: **${formatNumber(userProfile.gold)}** 🪙`,
+                    flags: MessageFlags.Ephemeral
+                });
+
+                // Refresh view
+                const view = createMarketView(currentCategory, userProfile.gold, selectedItem, userId);
+                await interaction.editReply(view);
+
+            } else if (customId.startsWith("dashboard:")) {
+                await i.reply({ content: "💡 Use `/dashboard` for the interactive hub!", flags: MessageFlags.Ephemeral });
+            }
         }
     });
 
     collector?.on("end", async () => {
-        row.components.forEach(component => component.data.disabled = true);
-        await interaction.editReply({ components: [row] });
-    })
+        const view = createMarketView(currentCategory, userProfile.gold, null, userId);
+        view.components.forEach((row: any) => {
+            row.components.forEach((c: any) => {
+                if (c.data) c.data.disabled = true;
+                else if (c.setDisabled) c.setDisabled(true);
+            });
+        });
+        await interaction.editReply(view).catch(() => { });
+    });
+}
+
+function createMarketView(category: string, gold: number, selectedItem: any, userId: string) {
+    const animals = marketItems.filter(item => item.type === "animals");
+    const seeds = marketItems.filter(item => item.type === "seeds");
+
+    // Category buttons + dashboard
+    const categoryRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        MARKET_BUTTONS.home(category === "main"),
+        MARKET_BUTTONS.animals(category === "animals"),
+        MARKET_BUTTONS.seeds(category === "seeds"),
+        MARKET_BUTTONS.upgrades(category === "upgrades"),
+        BUTTONS.dashboard()
+    );
+
+    const components: any[] = [categoryRow];
+    let embed: EmbedBuilder;
+
+    if (category === "main") {
+        embed = new EmbedBuilder()
+            .setTitle("🏪 The Market")
+            .setColor(COLORS.PRIMARY)
+            .setDescription(`💰 Your Gold: **${formatNumber(gold)}** 🪙\n\nWelcome to the farm market! Browse categories above to find items.`)
+            .addFields(
+                { name: "🐔 Animals", value: `${animals.length} available`, inline: true },
+                { name: "🌱 Seeds", value: `${seeds.length} available`, inline: true },
+                { name: "⏫ Upgrades", value: `${upgrades.length - 1} levels`, inline: true }
+            )
+            .setFooter({ text: "Select a category to browse items" })
+            .setTimestamp();
+
+    } else if (category === "animals" || category === "seeds") {
+        const items = category === "animals" ? animals : seeds;
+        const emoji = category === "animals" ? "🐔" : "🌱";
+
+        embed = new EmbedBuilder()
+            .setTitle(`${emoji} ${category.charAt(0).toUpperCase() + category.slice(1)} Market`)
+            .setColor(COLORS.PRIMARY)
+            .setDescription(`💰 Your Gold: **${formatNumber(gold)}** 🪙\n\nSelect an item from the dropdown to see details and buy.`)
+            .setTimestamp();
+
+        // Add select menu
+        const selectMenu = new StringSelectMenuBuilder()
+            .setCustomId(`select_${category}`)
+            .setPlaceholder(`Select ${category === "animals" ? "an animal" : "a seed"}...`)
+            .addOptions(items.map(item => ({
+                label: item.name,
+                description: `${formatNumber(item.buy_price)} 🪙 | ${(item.ready_time / 1000 / 60).toFixed(0)} min`,
+                value: item.name.toLowerCase(),
+                emoji: category === "animals" ? "🐔" : "🌱"
+            })));
+
+        components.push(new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu));
+
+        // If item selected, show details and buy buttons
+        if (selectedItem) {
+            const canAfford = Math.floor(gold / selectedItem.buy_price);
+            embed.addFields(
+                { name: "📦 Selected", value: `**${selectedItem.name}**`, inline: true },
+                { name: "💰 Price", value: `${formatNumber(selectedItem.buy_price)} 🪙`, inline: true },
+                { name: "🛒 Can Afford", value: `${canAfford}x`, inline: true }
+            );
+            embed.addFields(
+                { name: "⏱️ Ready Time", value: `${(selectedItem.ready_time / 1000 / 60).toFixed(0)} min`, inline: true },
+                { name: "📦 Produces", value: selectedItem.gives, inline: true },
+                { name: "⭐ Req. Level", value: `${selectedItem.level}`, inline: true }
+            );
+
+            // Buy buttons
+            const buyRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+                MARKET_BUTTONS.buyAmount(1, userId)
+                    .setLabel("Buy 1").setStyle(canAfford >= 1 ? 3 : 2) // SUCCESS : SECONDARY
+                    .setDisabled(canAfford < 1),
+                MARKET_BUTTONS.buyAmount(5, userId)
+                    .setLabel("Buy 5").setStyle(canAfford >= 5 ? 3 : 2)
+                    .setDisabled(canAfford < 5),
+                MARKET_BUTTONS.buyAmount(canAfford, userId)
+                    .setLabel(`Buy Max (${canAfford})`).setStyle(canAfford >= 1 ? 1 : 2) // PRIMARY : SECONDARY
+                    .setDisabled(canAfford < 1)
+            );
+            components.push(buyRow);
+
+            embed.setFooter({ text: getRandomTip() });
+        } else {
+            embed.setFooter({ text: "Select an item from the dropdown above" });
+        }
+
+    } else if (category === "upgrades") {
+        embed = new EmbedBuilder()
+            .setTitle("⏫ Farm Upgrades")
+            .setColor(COLORS.PRIMARY)
+            .setDescription(`💰 Your Gold: **${formatNumber(gold)}** 🪙\n\nUse \`/upgradefarm\` to upgrade your farm!`)
+            .setFooter({ text: "Upgrades increase crop/animal slots and storage" })
+            .setTimestamp();
+
+        upgrades.forEach(upgrade => {
+            if (upgrade.level === 1) return;
+            embed.addFields({
+                name: `Level ${upgrade.level} - ${formatNumber(upgrade.price)} 🪙`,
+                value: `🌱 ${upgrade.available_crop_slots} crops | 🐔 ${upgrade.available_animal_slots} animals | 📦 ${upgrade.storage_limit} storage`,
+                inline: true
+            });
+        });
+    } else {
+        embed = new EmbedBuilder().setTitle("Market").setColor(COLORS.PRIMARY);
+    }
+
+    return { embeds: [embed], components };
 }

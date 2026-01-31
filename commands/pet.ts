@@ -1,66 +1,145 @@
-import { CommandInteraction, SlashCommandBuilder } from "discord.js";
+import { CommandInteraction, SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ActionRowBuilder } from "discord.js";
 import database from "../database/methods.ts";
 import actions from "../config/data/actions.json";
-import { userProfileCache } from "../index.ts";
+import { userProfileCache } from "../services/profile_service.ts";
 import schema from "../database/schema.ts";
 import { logError } from "../utils/error_logger.ts";
+import { ERRORS, COLORS } from "../utils/constants.ts";
+import { createNoProfileEmbed } from "../utils/onboarding.ts";
+import { BUTTONS } from "../utils/buttons.ts";
+import { relativeTimestamp, createProgressBar } from "../utils/ux.ts";
+import { getProfile, updateCache } from "../services/index.ts";
 
 export const data = new SlashCommandBuilder()
     .setName("pet")
-    .setDescription(actions.actions.petting.description)
-    .addIntegerOption(option => 
-        option.setName("slot")
-        .setDescription("The animal slot number to pet")
-        .setRequired(true)
-        .setMinValue(1));
+    .setDescription("Pet an animal for a production boost!")
+    .addStringOption(option =>
+        option.setName("animal")
+            .setDescription("Select an animal to pet")
+            .setRequired(true)
+            .setAutocomplete(true));
+
+// Autocomplete handler for animal selection
+export async function autocomplete(interaction: any) {
+    const userId = interaction.user.id;
+    const focusedValue = interaction.options.getFocused().toLowerCase();
+
+    const { getProfile } = await import("../services/index.ts");
+    const profileResult = await getProfile(userId);
+
+    if (!profileResult || !profileResult.profile.farm.occupied_animal_slots?.length) {
+        return interaction.respond([{ name: "No animals raised yet!", value: "none" }]);
+    }
+
+    const animals = profileResult.profile.farm.occupied_animal_slots;
+    const choices = animals.map((animal: any, index: number) => ({
+        name: `${animal.name} (Slot ${index + 1})`,
+        value: `${index + 1}`
+    }));
+
+    const filtered = choices.filter((choice: any) =>
+        choice.name.toLowerCase().includes(focusedValue)
+    ).slice(0, 25);
+
+    await interaction.respond(filtered);
+}
 
 export async function execute(interaction: CommandInteraction) {
     await interaction.deferReply();
-    
+
     const userId = interaction.user.id;
-    
-    // Check cache first
-    let userProfile: any = userProfileCache.get(userId);
-    
-    // If not in cache, get from database and cache it
-    if (!userProfile) {
-        const dbProfile = await database.findUser(userId);
-        if (!dbProfile) return await interaction.editReply({ content: "Please create a profile first using `/farmer`!" });
-        
-        // Cache the plain object
-        userProfile = (dbProfile as any).toObject();
-        userProfileCache.set(userId, userProfile);
+
+    // Get user profile (using ProfileService)
+    const profileResult = await getProfile(userId);
+    if (!profileResult) return await interaction.editReply(createNoProfileEmbed(interaction.user.id));
+    let userProfile = profileResult.profile;
+    const dbProfile = profileResult.dbProfile;
+
+    const slotValue = interaction.options.get("animal")?.value as string;
+
+    if (slotValue === "none" || !slotValue) {
+        return await interaction.editReply({ content: "❌ Please select a valid animal!" });
     }
 
-    const slotNumber = interaction.options.get("slot")?.value as number;
-    
+    const slotNumber = parseInt(slotValue, 10);
+
+    // No animals
     if (!userProfile.farm.occupied_animal_slots.length) {
-        return await interaction.editReply({ content: "You don't have any animals to pet!" });
+        const embed = new EmbedBuilder()
+            .setTitle("❌ No Animals")
+            .setColor(COLORS.ERROR)
+            .setDescription("You don't have any animals to pet!");
+
+        const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
+            BUTTONS.marketBuy(),
+            BUTTONS.dashboard()
+        );
+
+        return await interaction.editReply({ embeds: [embed], components: [buttons] });
     }
 
-    if (slotNumber > userProfile.farm.occupied_animal_slots.length) {
-        return await interaction.editReply({ content: `Slot **${slotNumber}** doesn't exist! You only have **${userProfile.farm.occupied_animal_slots.length}** animal slots occupied.` });
+    // Invalid slot
+    if (isNaN(slotNumber) || slotNumber > userProfile.farm.occupied_animal_slots.length || slotNumber < 1) {
+        const embed = new EmbedBuilder()
+            .setTitle("❌ Invalid Selection")
+            .setColor(COLORS.ERROR)
+            .setDescription(`Please select a valid animal!`)
+            .addFields(
+                { name: "🐔 Animals", value: `${userProfile.farm.occupied_animal_slots.length} raised`, inline: true }
+            );
+
+        const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
+            BUTTONS.viewBarn()
+        );
+
+        return await interaction.editReply({ embeds: [embed], components: [buttons] });
     }
 
     const now = Date.now();
     const lastPet = userProfile.actions?.lastPet || 0;
     const cooldown = actions.actions.petting.cooldown;
 
+    // Cooldown check
     if (lastPet + cooldown > now) {
-        const timeLeft = Math.ceil((lastPet + cooldown - now) / 1000 / 60);
-        return await interaction.editReply({ content: `You need to wait **${timeLeft}** minutes before petting again!` });
+        const nextAvailable = lastPet + cooldown;
+        const embed = new EmbedBuilder()
+            .setTitle("⏰ Cooldown Active")
+            .setColor(COLORS.WARNING)
+            .setDescription(`You already pet an animal recently!`)
+            .addFields(
+                { name: "🕐 Try Again", value: relativeTimestamp(nextAvailable), inline: true }
+            );
+
+        const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
+            BUTTONS.feedInstead(),
+            BUTTONS.cleanInstead(),
+            BUTTONS.dashboard()
+        );
+
+        return await interaction.editReply({ embeds: [embed], components: [buttons] });
     }
 
-    // Update cache immediately
-    const updatedProfile = { ...userProfile };
-    
+    // Update cache immediately with deep clone
+    const updatedProfile = JSON.parse(JSON.stringify(userProfile));
+
     // Apply boost to specific animal
     const boost = actions.actions.petting.boost;
     const animalSlot = updatedProfile.farm.occupied_animal_slots[slotNumber - 1];
     const timeLeft = animalSlot.ready_at - now;
-    
+
+    // Already ready
     if (timeLeft <= 0) {
-        return await interaction.editReply({ content: `The animal in slot **${slotNumber}** is ready to harvest! No need to pet it.` });
+        const embed = new EmbedBuilder()
+            .setTitle("✅ Already Ready!")
+            .setColor(COLORS.SUCCESS)
+            .setDescription(`The animal in slot **${slotNumber}** is ready to harvest!`);
+
+        const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
+            BUTTONS.harvestNow(),
+            BUTTONS.dashboard()
+        );
+
+        return await interaction.editReply({ embeds: [embed], components: [buttons] });
     }
 
     // Check if previous boost has expired
@@ -71,7 +150,7 @@ export async function execute(interaction: CommandInteraction) {
     // Update total boost and set expiration
     if (!animalSlot.total_boost) animalSlot.total_boost = 0;
     animalSlot.total_boost += boost;
-    animalSlot.boost_expires_at = now + (2 * 60 * 60 * 1000); // 2 hours from now
+    animalSlot.boost_expires_at = now + (2 * 60 * 60 * 1000); // 2 hours
 
     // Apply boost to production time
     const originalTime = timeLeft;
@@ -82,16 +161,11 @@ export async function execute(interaction: CommandInteraction) {
     // Update cooldown
     if (!updatedProfile.actions) updatedProfile.actions = {};
     updatedProfile.actions.lastPet = now;
-    
+
     // Update cache
     userProfileCache.set(userId, updatedProfile);
 
-    // Hydrate the cached profile into a Mongoose document
-    const dbProfile = schema.hydrate(updatedProfile);
-    if (!dbProfile) {
-        userProfileCache.del(userId);
-        return await interaction.editReply({ content: "An error occurred while processing your request." });
-    }
+    // dbProfile already hydrated by ProfileService
 
     try {
         await database.saveNestedObject(dbProfile, "farm");
@@ -100,10 +174,36 @@ export async function execute(interaction: CommandInteraction) {
         logError(interaction.client, {
             path: "pet.ts",
             error
-        })
+        });
         userProfileCache.del(userId);
-        return await interaction.editReply({ content: "An error occurred while processing your request." });
+        return await interaction.editReply({ content: ERRORS.GENERIC });
     }
 
-    return await interaction.editReply({ content: `Successfully pet animal in slot **${slotNumber}**! Production speed increased by **${boost}%** (Total boost: **${animalSlot.total_boost}%**)` });
+    // Success embed
+    const boostBar = createProgressBar(animalSlot.total_boost, 100, 10);
+
+    const embed = new EmbedBuilder()
+        .setTitle("❤️ Animal Pet!")
+        .setColor(COLORS.SUCCESS)
+        .setDescription(`Your **${animalSlot.name}** in slot **${slotNumber}** loved that!`)
+        .addFields(
+            { name: "⚡ Boost Applied", value: `+${boost}%`, inline: true },
+            { name: "📊 Total Boost", value: `${animalSlot.total_boost}%`, inline: true },
+            { name: "⏱️ Time Saved", value: `${Math.round(reduction / 1000 / 60)}m`, inline: true }
+        )
+        .addFields(
+            { name: "🔋 Boost Bar", value: boostBar, inline: false },
+            { name: "🕐 Ready", value: relativeTimestamp(animalSlot.ready_at), inline: true }
+        )
+        .setFooter({ text: "Boosts stack! Feed and clean for more speed." })
+        .setTimestamp();
+
+    // Follow-up buttons
+    const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        BUTTONS.feed(),
+        BUTTONS.clean(),
+        BUTTONS.dashboard()
+    );
+
+    return await interaction.editReply({ embeds: [embed], components: [buttons] });
 }

@@ -1,10 +1,10 @@
 import mongoose, { Schema } from "mongoose";
-import type { storageItem, Upgrades, OccupiedCropSlot, OccupiedAnimalSlot } from "../types/database_types";
+import type { StorageItem, UpgradeType, OccupiedCropSlot, OccupiedAnimalSlot } from "../types/database_types.ts";
 import farms from "../config/upgrades/farms.json";
 import configuration from "../config/configuration.json";
 
 const schema: Schema = new Schema({
-    id: String,
+    id: { type: String, index: true, unique: true },
     username: String,
     blacklisted: { type: Boolean, default: false },
     level: { type: Number, default: configuration.starter_level },
@@ -24,11 +24,11 @@ const schema: Schema = new Schema({
         storage_limit: { type: Number, default: farms[0].storage_limit },
         occupied_crop_slots: Array<OccupiedCropSlot>,
         occupied_animal_slots: Array<OccupiedAnimalSlot>,
-        upgrades: Array<Upgrades>
+        upgrades: Array<UpgradeType>
     },
     storage: {
-        market_items: Array<storageItem>,
-        products: Array<storageItem>
+        market_items: Array<StorageItem>,
+        products: Array<StorageItem>
     }
 }, { versionKey: false });
 

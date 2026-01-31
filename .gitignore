@@ -175,3 +175,7 @@ dist
 .DS_Store
 placeholder.txt
 test.js
+
+# Internal documentation (not committed)
+docs/ARCHITECTURE.md
+docs/COMMAND_AUDIT.md
