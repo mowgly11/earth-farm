@@ -8,6 +8,7 @@ import { createNoProfileEmbed } from "../utils/onboarding.ts";
 import { formatNumber, getRandomTip } from "../utils/ux.ts";
 import { BTN_STYLE, parseButtonId, isButtonOwner } from "../utils/button_handler.ts";
 import { MARKET_BUTTONS, BUTTONS } from "../utils/buttons.ts";
+import { getStorageCount } from "../utils/storage.ts";
 import { getProfile } from "../services/index.ts";
 
 export const data = new SlashCommandBuilder()
@@ -34,14 +35,7 @@ export async function execute(interaction: CommandInteraction) {
 
     // Collector for all interactions
     const collector = response?.resource?.message?.createMessageComponentCollector({
-        filter: (m) => {
-            // Check ownership via customId for buttons
-            if (m.isButton()) {
-                const parts = m.customId.split(":");
-                return parts.length < 3 || parts[2] === userId;
-            }
-            return m.user.id === userId;
-        },
+        filter: (m) => m.user.id === userId,
         time: 300000 // 5 minutes
     });
 
@@ -95,6 +89,24 @@ export async function execute(interaction: CommandInteraction) {
                     return;
                 }
 
+                // Same gates as /buy
+                if (userProfile.level < selectedItem.level) {
+                    await i.reply({
+                        content: `❌ You need to reach **Level ${selectedItem.level}** to buy **${selectedItem.name}**`,
+                        flags: MessageFlags.Ephemeral
+                    });
+                    return;
+                }
+
+                const storageSpace = userProfile.farm.storage_limit - getStorageCount(userProfile.storage);
+                if (amount > storageSpace) {
+                    await i.reply({
+                        content: `❌ Not enough storage space: **${Math.max(0, storageSpace)}** free, trying to buy **${amount}**`,
+                        flags: MessageFlags.Ephemeral
+                    });
+                    return;
+                }
+
                 // Perform purchase
                 const profile = dbProfile as any;
                 profile.gold -= totalCost;
@@ -105,7 +117,8 @@ export async function execute(interaction: CommandInteraction) {
                 if (existingItem) {
                     existingItem.amount += amount;
                 } else {
-                    profile.storage[storageKey].push({ name: selectedItem.name, amount });
+                    // Full item config, as /buy stores it: /raise needs ready_time, lifetime and gives
+                    profile.storage[storageKey].push({ ...selectedItem, amount });
                 }
 
                 profile.markModified("gold");

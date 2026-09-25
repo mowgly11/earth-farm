@@ -101,8 +101,8 @@ class DatabaseMethods {
 
         if (itemIndex !== -1) storageList[itemIndex].amount += quantity;
         else {
-            item.amount = quantity;
-            storageList.push(item);
+            // Copy: the caller's object may be an entry in another profile's storage (trade)
+            storageList.push({ ...item, amount: quantity });
         }
 
         await this.saveNestedObject(userProfile, "storage");
@@ -129,9 +129,26 @@ class DatabaseMethods {
         await this.saveNestedObject(userProfile, "storage");
     }
 
+    /**
+     * Apply an atomic MongoDB update ($inc/$set on top-level fields) and copy the fresh
+     * values back onto the in-memory document without marking them modified. A document
+     * hydrated before a wait (scratch card, upgrade confirm) can then still save() its
+     * other fields without overwriting gold/xp changed by another command in between.
+     * Returns the fresh plain profile (lean), suitable for the cache.
+     */
+    async atomicUpdate(userProfile: any, update: Record<string, Record<string, any>>): Promise<any> {
+        const fresh: any = await schema.findOneAndUpdate({ id: userProfile.id }, update, { new: true }).lean();
+        if (!fresh) throw new Error(`Profile ${userProfile.id} not found`);
+        for (const path of Object.values(update).flatMap(fields => Object.keys(fields))) {
+            userProfile[path] = fresh[path];
+            if (typeof userProfile.unmarkModified === "function") userProfile.unmarkModified(path);
+        }
+        return fresh;
+    }
+
+    /** Add price to gold atomically (negative to pay); see atomicUpdate. */
     async makePayment(userProfile: any, price: number) {
-        userProfile.gold += price;
-        await userProfile.save();
+        await this.atomicUpdate(userProfile, { $inc: { gold: price } });
     }
 
     async plantSeed(userProfile: any, seed: string, ready_at: number, prod: string) {

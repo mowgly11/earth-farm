@@ -77,17 +77,13 @@ export async function executeScratchAction(profile: any, dbProfile: any, userId:
     const isGold = Math.random() > 0.4;
     const goldReward = Math.floor(Math.random() * (150 - 50 + 1)) + 50;
     const xpReward = Math.floor(Math.random() * (25 - 5 + 1)) + 5;
-    const goldBefore = profile.gold;
-    const xpBefore = profile.xp;
-
-    // Update database
-    dbProfile.scratch = now + 1000 * 60 * 60 * 8;
-    if (isGold) dbProfile.gold += goldReward;
-    else dbProfile.xp += xpReward;
-    dbProfile.markModified("scratch");
-    dbProfile.markModified("gold");
-    dbProfile.markModified("xp");
-    await dbProfile.save();
+    // Atomic $inc: dbProfile was hydrated before the 30s wait, so a plain save would overwrite gold/xp changed since
+    const fresh = await database.atomicUpdate(dbProfile, {
+        $set: { scratch: now + 1000 * 60 * 60 * 8 },
+        $inc: isGold ? { gold: goldReward } : { xp: xpReward }
+    });
+    const goldBefore = fresh.gold - (isGold ? goldReward : 0);
+    const xpBefore = fresh.xp - (isGold ? 0 : xpReward);
 
     // Log action and economy change
     logger.action("scratch", userId, "success", { isGold, reward: isGold ? goldReward : xpReward });
