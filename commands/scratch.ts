@@ -1,7 +1,6 @@
 import { CommandInteraction, SlashCommandBuilder, MessageFlags, ButtonBuilder, ButtonStyle, ActionRowBuilder, AttachmentBuilder, EmbedBuilder } from "discord.js";
 import database from "../database/methods.js";
 import { userProfileCache } from "../services/profile_service.ts";
-import schema from "../database/schema.ts";
 import { logError } from "../utils/error_logger.ts";
 import { join } from "path";
 import { ERRORS, COLORS } from "../utils/constants.ts";
@@ -121,35 +120,14 @@ export async function execute(interaction: CommandInteraction) {
     const rewardType = won[0];
     const rewardAmount = parseInt(won[1]);
 
-    // Store before values
-    const goldBefore = userProfile.gold;
-    const xpBefore = userProfile.xp;
-
-    // Update cache immediately with deep clone to prevent race conditions
-    const updatedProfile = JSON.parse(JSON.stringify(userProfile));
-    updatedProfile.scratch = Date.now() + 1000 * 60 * 60 * 8; // 8h
-
-    if (rewardType === "gold") {
-        updatedProfile.gold += rewardAmount;
-    } else {
-        updatedProfile.xp += rewardAmount;
-    }
-
-    // Update cache
-    userProfileCache.set(user.id, updatedProfile);
-
-    // Hydrate the cached profile into a Mongoose document
-    const dbProfile = schema.hydrate(updatedProfile);
-    if (!dbProfile) {
-        userProfileCache.del(user.id);
-        return await interaction.editReply({ content: ERRORS.GENERIC });
-    }
-
+    // Atomic $inc: the profile was read before the 30s wait, so a plain save would overwrite gold/xp changed since
+    let updatedProfile: any;
     try {
-        dbProfile.markModified("scratch");
-        dbProfile.markModified("gold");
-        dbProfile.markModified("xp");
-        await dbProfile.save();
+        updatedProfile = await database.atomicUpdate(profileResult.dbProfile, {
+            $set: { scratch: Date.now() + 1000 * 60 * 60 * 8 }, // 8h
+            $inc: { [rewardType]: rewardAmount }
+        });
+        userProfileCache.set(user.id, updatedProfile);
     } catch (error) {
         logError(interaction.client, {
             path: 'scratch.ts',
@@ -158,6 +136,10 @@ export async function execute(interaction: CommandInteraction) {
         userProfileCache.del(user.id);
         return await interaction.editReply({ content: ERRORS.GENERIC });
     }
+
+    // Before values, derived from the fresh document
+    const goldBefore = updatedProfile.gold - (rewardType === "gold" ? rewardAmount : 0);
+    const xpBefore = updatedProfile.xp - (rewardType === "xp" ? rewardAmount : 0);
 
     // Disable button and change to celebration
     scratchBtn.setDisabled(true).setLabel("🎉 Revealed!").setStyle(ButtonStyle.Secondary);

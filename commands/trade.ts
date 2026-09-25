@@ -5,7 +5,6 @@ import products from "../config/items/products.json";
 import market from "../config/data/market.json";
 import { logTransaction } from "../utils/transaction_logger.ts";
 import { userProfileCache } from "../services/profile_service.ts";
-import schema from "../database/schema.ts";
 import { logError } from "../utils/error_logger.ts";
 import { COLORS } from "../utils/constants.ts";
 import { CONFIRM_BUTTONS, BUTTONS } from "../utils/buttons.ts";
@@ -90,8 +89,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         return await interaction.editReply({ content: "Invalid target user!" });
     }
 
-    if (pendingOffers.has(targetUser.id)) {
-        return await interaction.editReply({ content: "This user already has a pending offer, please wait until the offer is done." });
+    if (pendingOffers.has(targetUser.id) || pendingOffers.has(interaction.user.id)) {
+        return await interaction.editReply({ content: "One of you already has a pending offer, please wait until it is done." });
     }
 
     if (targetUser.id === interaction.user.id) {
@@ -201,9 +200,9 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     collector.on("collect", async (i) => {
         if (i.customId === "accept") {
             try {
-                // Hydrate both profiles into Mongoose documents
-                const initiatorDbProfile: any = schema.hydrate(initiatorProfile);
-                const targetDbProfile: any = schema.hydrate(targetProfile);
+                // Re-read both profiles: the snapshots taken when the offer was made are up to 2 minutes old
+                const initiatorDbProfile: any = await database.findUser(interaction.user.id);
+                const targetDbProfile: any = await database.findUser(targetUser.id);
 
                 if (!initiatorDbProfile || !targetDbProfile) {
                     userProfileCache.del(interaction.user.id);
@@ -211,8 +210,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                     return i.reply({ content: "An error occurred while processing the trade.", flags: MessageFlags.Ephemeral });
                 }
 
-                const initiatorGoldBefore = (initiatorProfile as any).gold;
-                const targetGoldBefore = (targetProfile as any).gold;
+                const initiatorGoldBefore = initiatorDbProfile.gold;
+                const targetGoldBefore = targetDbProfile.gold;
 
                 let reqItemObj = targetDbProfile.storage[requestType].find((v: { name: string; amount: number }) => v.name === requestItem);
                 let offeredItemObj = initiatorDbProfile.storage[offerType].find((v: { name: string; amount: number }) => v.name === offerItem);
